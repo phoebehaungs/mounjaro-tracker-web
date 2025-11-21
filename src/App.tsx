@@ -25,6 +25,7 @@ import {
   Moon,
   Sun,
   ChefHat,
+  Sparkles,
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import {
@@ -133,6 +134,23 @@ const TabButton = ({ active, label, onClick }: any) => (
 // --- Main App ---
 export default function App() {
   const [user, setUser] = useState<any>(null);
+  const quotes = [
+    '我不是在追求完美，我是在學著對自己更溫柔、更持續。',
+    '即使進度很慢，我也在扎實地向更健康的自己靠近。',
+    '壓力再高，我也值得擁有一個穩定、輕鬆的生活節奏。',
+    '每一次我願意為自己做一點小事，都是在奠定我未來的力量。',
+    '我正在把身體、心情與生活重新調成我想要的樣子。',
+    '情緒起伏不代表我失敗，它只是提醒我要更照顧自己。',
+    '我已經比昨天更懂得怎麼讓身體舒服、心更安穩。',
+    '我的努力不需要被看見才有價值——我自己知道。',
+    '我願意相信，持續照顧自己的我，一定會慢慢瘦、慢慢更自在。',
+    '不急，我走得慢也沒關係，我會一直走下去，而這就值得驕傲。',
+    '我不需要急著瘦下來，我只要每天微微前進一點點，身體就會慢慢回到我值得擁有的樣子。',
+  ];
+
+  const randomQuote = useMemo(() => {
+    return quotes[Math.floor(Math.random() * quotes.length)];
+  }, []);
   const [activeTab, setActiveTab] = useState<
     'dashboard' | 'daily' | 'injections' | 'body'
   >('dashboard');
@@ -148,7 +166,7 @@ export default function App() {
     new Date().toISOString().split('T')[0]
   );
   const [injDosage, setInjDosage] = useState('2.5');
-  const [injSite, setInjSite] = useState('腹部');
+  const [injSite, setInjSite] = useState('左上腹');
   const [injNotes, setInjNotes] = useState('');
   const [bodyDate, setBodyDate] = useState(
     new Date().toISOString().split('T')[0]
@@ -161,7 +179,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [waterBottleSize, setWaterBottleSize] = useState(500);
+  const [waterBottleSize, setWaterBottleSize] = useState(1200);
   const [mealContent, setMealContent] = useState('');
   const [activeMealType, setActiveMealType] = useState<
     'breakfast' | 'lunch' | 'dinner' | 'snack' | null
@@ -320,13 +338,17 @@ export default function App() {
 
   if (loading)
     return (
-      <div className="flex h-screen items-center justify-center text-slate-400">
+      <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-sans pb-24 flex flex-col">
         載入健康數據...
       </div>
     );
 
+  // ... 前面的程式碼保持不變 ...
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-sans pb-24">
+    // 修正 1: 在最外層加入 'flex flex-col'
+    <div className="fixed inset-0 w-full h-full bg-[#F8FAFC] text-slate-800 font-sans flex flex-col overflow-y-auto overflow-x-hidden pb-24">
+      {/* 背景漸層保持不變 */}
       <div className="fixed top-0 left-0 w-full h-64 bg-gradient-to-br from-indigo-50 via-purple-50 to-white -z-10" />
 
       <header className="pt-8 pb-6 px-6">
@@ -370,10 +392,24 @@ export default function App() {
         </div>
       </div>
 
-      <main className="px-6 max-w-md mx-auto space-y-6 animate-fade-in">
+      {/* 修正 2: 在 main 加入 'flex-1' 和 'w-full' */}
+      <main className="px-6 max-w-md mx-auto space-y-6 animate-fade-in flex-1 w-full">
         {/* --- DASHBOARD --- */}
         {activeTab === 'dashboard' && (
           <>
+            {/* ▼▼▼ 新增這個語錄卡片 ▼▼▼ */}
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2 mb-2">
+                <Sparkles className="h-5 w-5 text-yellow-500" />
+                給自己的一句話
+              </h2>
+              <Card className="p-4 bg-white/50 border-indigo-100/50">
+                <p className="text-indigo-900 font-medium text-center italic">
+                  "{randomQuote}"
+                </p>
+              </Card>
+            </div>
+            {/* ▲▲▲ 新增結束 ▲▲▲ */}
             <div className="grid grid-cols-2 gap-4">
               <Card className="p-5">
                 <p className="text-slate-400 text-xs font-bold mb-1">
@@ -445,11 +481,15 @@ export default function App() {
                   >
                     {lastPoop?.date === selectedDate ? '已打卡' : '未記錄'}
                   </span>
-                  <span className="text-[10px] text-slate-400 block">大號</span>
+                  <span className="text-[10px] text-slate-400 block">排便</span>
                 </div>
               </div>
             </Card>
 
+            {/* 修正 3 (選用): 如果希望總覽頁面的圖表能填滿下方剩餘空間，
+                可以將 h-64 改為 flex-1 min-h-[250px]，並確保父層也有 flex 設定。
+                目前暫時保持 h-64 避免圖表變形。
+            */}
             <Card className="p-5 pb-0 h-64">
               <p className="text-xs font-bold text-slate-400 uppercase mb-4">
                 體重趨勢
@@ -499,6 +539,9 @@ export default function App() {
         {/* --- DAILY LIFE --- */}
         {activeTab === 'daily' && (
           <div className="space-y-6">
+            {/* ... 日常頁面的內容保持不變 ... */}
+            {/* 為了節省篇幅，這裡省略中間內容，請保留您原本的程式碼 */}
+            {/* 這裡放入原本 daily 的所有內容 */}
             <div className="flex items-center justify-between bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
               <button
                 onClick={() => {
@@ -701,12 +744,12 @@ export default function App() {
                   <div className="bg-green-50 p-3 rounded-full mb-3 text-green-600">
                     <CheckCircle2 className="h-6 w-6" />
                   </div>
-                  <h4 className="font-bold text-slate-700 mb-1">大號記錄</h4>
+                  <h4 className="font-bold text-slate-700 mb-1">排便記錄</h4>
                   <p className="text-xs text-slate-400 mb-4">
                     上次: {lastPoop ? lastPoop.date.slice(5) : '無'}
                   </p>
                   <button
-                    onClick={() => addDailyLog('poop', null, null, '大號打卡')}
+                    onClick={() => addDailyLog('poop', null, null, '排便打卡')}
                     className="w-full py-2 bg-green-100 text-green-700 rounded-xl font-bold text-sm hover:bg-green-200"
                   >
                     + 記錄一次
@@ -796,15 +839,15 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <div className="flex gap-2">
-                  {['腹部', '大腿', '手臂'].map((s) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {['左上腹', '左下腹', '右上腹', '右下腹'].map((s) => (
                     <button
                       key={s}
                       onClick={() => setInjSite(s)}
-                      className={`flex-1 py-3 rounded-xl text-sm font-bold border-2 ${
+                      className={`py-3 rounded-xl text-sm font-bold border-2 transition-all ${
                         injSite === s
-                          ? 'border-indigo-600 text-indigo-700 bg-indigo-50'
-                          : 'border-transparent bg-slate-50'
+                          ? 'border-indigo-600 text-indigo-700 bg-indigo-50 shadow-sm'
+                          : 'border-transparent bg-slate-50 text-slate-500 hover:bg-slate-100'
                       }`}
                     >
                       {s}
