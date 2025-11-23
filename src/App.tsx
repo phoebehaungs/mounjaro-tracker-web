@@ -139,38 +139,44 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   // ▼▼▼ 新增：綁定 Google 帳號的函式 ▼▼▼
   // ▼▼▼ 請替換成這個聰明版的新函式 ▼▼▼
+  // ▼▼▼ 請替換成這段新的函式 ▼▼▼
   const handleLinkGoogle = async () => {
-    // 建立 Google 提供者
     const provider = new GoogleAuthProvider();
     
     try {
-      // 1. 先嘗試「綁定」：假設使用者是第一次想把資料存起來
+      // 1. 先嘗試「綁定」 (Link)
+      // 邏輯：假設這是您第一次想把目前的訪客資料存起來
       if (auth.currentUser) {
         await linkWithPopup(auth.currentUser, provider);
         alert("綁定成功！您的資料現在永久安全了 🎉");
+        // 重新整理一下狀態
+        setUser({ ...auth.currentUser });
       }
     } catch (error: any) {
       console.error("Binding Error:", error);
       
-      // 2. 如果報錯說「credential-already-in-use」，代表這個 Google 帳號已經是舊用戶了
+      // 2. 關鍵時刻：如果報錯代碼是 'credential-already-in-use'
+      // 代表這個 Google 帳號已經是舊用戶了（您在 Firefox 綁定過了）
       if (error.code === 'auth/credential-already-in-use') {
-        // 詢問使用者是否要登入舊帳號
+        
+        // 跳出視窗詢問使用者
         const wantToSwitch = window.confirm(
-          "這個 Google 帳號已經有儲存的舊資料了。\n\n要切換回舊帳號嗎？\n(注意：目前這個新開的暫存記錄將會消失)"
+          "這個 Google 帳號已經有舊資料了！\n\n您是否要切換回該帳號？\n(注意：目前這個空白的暫存記錄將會消失)"
         );
 
         if (wantToSwitch) {
           try {
-            // 3. 執行「登入」：切換身分
+            // 3. 執行「登入」 (Sign In) 取代目前的訪客
             await signInWithPopup(auth, provider);
-            // 登入成功後，頁面會自動重新整理載入舊資料
+            // 登入成功後，React 會自動偵測到 user 變了，畫面就會自動換成舊資料
           } catch (signInError) {
             console.error("Sign In Error:", signInError);
             alert("登入失敗，請稍後再試。");
           }
         }
       } else {
-        alert("綁定失敗，請確認網路連線或稍後再試。");
+        // 其他錯誤（例如網路斷線、視窗被關閉）
+        alert("操作失敗：" + error.message);
       }
     }
   };
