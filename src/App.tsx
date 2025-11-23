@@ -25,7 +25,7 @@ import {
   Moon,
   Sun,
   ChefHat,
-  Sparkles,
+  Sparkles, // 語錄圖示
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import {
@@ -33,6 +33,10 @@ import {
   onAuthStateChanged,
   signInAnonymously,
   signInWithCustomToken,
+  GoogleAuthProvider,
+  linkWithPopup,
+  signInWithPopup, // 登入用
+  signOut,         // 登出用
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -42,11 +46,10 @@ import {
   doc,
   onSnapshot,
   serverTimestamp,
+  getDocs, // 救援工具用
 } from 'firebase/firestore';
 
 // --- Firebase Config ---
-// 【重要】請在這裡填入您從 Firebase 網站複製的資訊
-// 請將下方引號內的內容替換成您的真實金鑰
 const firebaseConfig = {
   apiKey: 'AIzaSyBYypp0GuHSt_AOcR4_N6zd4PevzRvbrCI',
   authDomain: 'my-mounjaro-life.firebaseapp.com',
@@ -60,7 +63,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'my-mounjaro-life'; // 固定的 App ID
+const appId = 'my-mounjaro-life';
 
 // --- Types ---
 interface InjectionRecord {
@@ -134,23 +137,6 @@ const TabButton = ({ active, label, onClick }: any) => (
 // --- Main App ---
 export default function App() {
   const [user, setUser] = useState<any>(null);
-  const quotes = [
-    '我不是在追求完美，我是在學著對自己更溫柔、更持續。',
-    '即使進度很慢，我也在扎實地向更健康的自己靠近。',
-    '壓力再高，我也值得擁有一個穩定、輕鬆的生活節奏。',
-    '每一次我願意為自己做一點小事，都是在奠定我未來的力量。',
-    '我正在把身體、心情與生活重新調成我想要的樣子。',
-    '情緒起伏不代表我失敗，它只是提醒我要更照顧自己。',
-    '我已經比昨天更懂得怎麼讓身體舒服、心更安穩。',
-    '我的努力不需要被看見才有價值——我自己知道。',
-    '我願意相信，持續照顧自己的我，一定會慢慢瘦、慢慢更自在。',
-    '不急，我走得慢也沒關係，我會一直走下去，而這就值得驕傲。',
-    '我不需要急著瘦下來，我只要每天微微前進一點點，身體就會慢慢回到我值得擁有的樣子。',
-  ];
-
-  const randomQuote = useMemo(() => {
-    return quotes[Math.floor(Math.random() * quotes.length)];
-  }, []);
   const [activeTab, setActiveTab] = useState<
     'dashboard' | 'daily' | 'injections' | 'body'
   >('dashboard');
@@ -166,7 +152,7 @@ export default function App() {
     new Date().toISOString().split('T')[0]
   );
   const [injDosage, setInjDosage] = useState('2.5');
-  const [injSite, setInjSite] = useState('左上腹');
+  const [injSite, setInjSite] = useState('左上腹'); // 預設改為左上腹
   const [injNotes, setInjNotes] = useState('');
   const [bodyDate, setBodyDate] = useState(
     new Date().toISOString().split('T')[0]
@@ -179,26 +165,47 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [waterBottleSize, setWaterBottleSize] = useState(1200);
+  const [waterBottleSize, setWaterBottleSize] = useState(1200); // 預設 1200ml
   const [mealContent, setMealContent] = useState('');
   const [activeMealType, setActiveMealType] = useState<
     'breakfast' | 'lunch' | 'dinner' | 'snack' | null
   >(null);
 
-  // --- Auth & Load ---
+  // 救援工具 ID
+  const [rescueId, setRescueId] = useState('');
+
+  // 語錄
+  const quotes = [
+    "這一次，是為了自己而努力。",
+    "慢慢來，比較快。",
+    "擁抱情緒，然後輕輕放下。",
+    "你的價值不由數字定義。",
+    "今天的努力，身體都知道。",
+    "專注當下，不回頭看。",
+    "善待自己，身心都會回應你。",
+    "每一個小進步，都值得慶祝。",
+    "不完美的自己，也值得被愛。",
+    "原諒過去，擁抱現在。",
+    "餓了就吃，飽了就停，相信身體。",
+  ];
+
+  const randomQuote = useMemo(() => {
+    return quotes[Math.floor(Math.random() * quotes.length)];
+  }, []);
+
+  // --- Auth Logic (自動記憶) ---
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        await signInAnonymously(auth);
-      } catch (e) {
-        console.error('Auth Error', e);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        console.log("歡迎回來:", currentUser.uid);
+        setUser(currentUser);
+        setLoading(false);
+      } else {
+        console.log("建立新訪客...");
+        signInAnonymously(auth).catch((err) => console.error("Login Error:", err));
       }
-    };
-    initAuth();
-    onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
     });
+    return () => unsubscribe();
   }, []);
 
   // --- Realtime Listeners ---
@@ -250,7 +257,7 @@ export default function App() {
     };
   }, [user]);
 
-  // --- Handlers ---
+  // --- Handlers (Action) ---
   const addInjection = async () => {
     if (!user) return;
     await addDoc(
@@ -314,6 +321,67 @@ export default function App() {
     await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, coll, id));
   };
 
+  // --- Auth Handlers (Link / Sign In / Logout) ---
+  const handleLinkGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      if (auth.currentUser) {
+        await linkWithPopup(auth.currentUser, provider);
+        alert("綁定成功！您的資料現在永久安全了 🎉");
+        setUser({ ...auth.currentUser });
+      }
+    } catch (error: any) {
+      console.error("Binding Error:", error);
+      if (error.code === 'auth/credential-already-in-use') {
+        const wantToSwitch = window.confirm(
+          "這個 Google 帳號已經有舊資料了！\n\n您是否要切換回該帳號？\n(注意：目前這個空白的暫存記錄將會消失)"
+        );
+        if (wantToSwitch) {
+          try {
+            await signInWithPopup(auth, provider);
+          } catch (signInError) {
+            console.error("Sign In Error:", signInError);
+            alert("登入失敗，請稍後再試。");
+          }
+        }
+      } else {
+        alert("操作失敗：" + error.message);
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    if (confirm("確定要登出嗎？\n(登出後將建立一個新的訪客身分)")) {
+      await signOut(auth);
+      window.location.reload();
+    }
+  };
+
+  // --- Rescue Handler ---
+  const handleRescueData = async () => {
+    if (!user || !rescueId) return alert("請輸入舊 ID");
+    if (!confirm(`確定要從舊帳號 (${rescueId}) 把資料搬過來嗎？`)) return;
+
+    const collections = ['injections', 'measurements', 'daily_logs'];
+    let count = 0;
+
+    try {
+      for (const collName of collections) {
+        const oldRef = collection(db, 'artifacts', appId, 'users', rescueId, collName);
+        const snapshot = await getDocs(oldRef);
+        for (const docSnap of snapshot.docs) {
+          const data = docSnap.data();
+          await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, collName), data);
+          count++;
+        }
+      }
+      alert(`救援成功！總共搬運了 ${count} 筆資料。\n請重新整理頁面查看。`);
+    } catch (e: any) {
+      console.error(e);
+      alert("救援失敗：" + e.message);
+    }
+  };
+
   // --- Computed Data ---
   const todaysLogs = dailyLogs.filter((l) => l.date === selectedDate);
   const waterTotal = todaysLogs
@@ -324,6 +392,18 @@ export default function App() {
     .filter((l) => l.category === 'poop')
     .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
   const lastPoop = poops[0];
+
+  // 計算排便天數
+  const daysSincePoop = useMemo(() => {
+    if (!lastPoop) return -1;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const [y, m, d] = lastPoop.date.split('-').map(Number);
+    const last = new Date(y, m - 1, d);
+    const diffTime = today.getTime() - last.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }, [lastPoop]);
 
   const chartData = useMemo(() => {
     return [...bodyRecords]
@@ -338,17 +418,13 @@ export default function App() {
 
   if (loading)
     return (
-      <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-sans pb-24 flex flex-col">
+      <div className="flex h-screen items-center justify-center text-slate-400">
         載入健康數據...
       </div>
     );
 
-  // ... 前面的程式碼保持不變 ...
-
   return (
-    // 修正 1: 在最外層加入 'flex flex-col'
     <div className="fixed inset-0 w-full h-full bg-[#F8FAFC] text-slate-800 font-sans flex flex-col overflow-y-auto overflow-x-hidden pb-24">
-      {/* 背景漸層保持不變 */}
       <div className="fixed top-0 left-0 w-full h-64 bg-gradient-to-br from-indigo-50 via-purple-50 to-white -z-10" />
 
       <header className="pt-8 pb-6 px-6">
@@ -361,9 +437,30 @@ export default function App() {
               健康日記<span className="text-indigo-600">.</span>
             </h1>
           </div>
-          <div className="h-10 w-10 rounded-full bg-white shadow-md flex items-center justify-center border border-indigo-50">
-            <Activity className="h-5 w-5 text-indigo-600" />
-          </div>
+          {/* 全能版按鈕：綁定/登入/登出 */}
+          <button
+            onClick={user?.isAnonymous ? handleLinkGoogle : handleLogout}
+            className={`h-10 w-10 rounded-full shadow-md flex items-center justify-center border transition-all cursor-pointer ${
+              user?.isAnonymous
+                ? 'bg-white border-indigo-50 hover:bg-indigo-50'
+                : 'bg-indigo-600 border-indigo-600 hover:opacity-90'
+            }`}
+            title={user?.isAnonymous ? "點擊綁定/登入" : "點擊登出"}
+          >
+            {user?.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt="User"
+                className="h-full w-full rounded-full object-cover"
+              />
+            ) : (
+              <Activity
+                className={`h-5 w-5 ${
+                  user?.isAnonymous ? 'text-indigo-600' : 'text-white'
+                }`}
+              />
+            )}
+          </button>
         </div>
       </header>
 
@@ -392,12 +489,10 @@ export default function App() {
         </div>
       </div>
 
-      {/* 修正 2: 在 main 加入 'flex-1' 和 'w-full' */}
       <main className="px-6 max-w-md mx-auto space-y-6 animate-fade-in flex-1 w-full">
         {/* --- DASHBOARD --- */}
         {activeTab === 'dashboard' && (
           <>
-            {/* ▼▼▼ 新增這個語錄卡片 ▼▼▼ */}
             <div className="mb-4">
               <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2 mb-2">
                 <Sparkles className="h-5 w-5 text-yellow-500" />
@@ -409,7 +504,7 @@ export default function App() {
                 </p>
               </Card>
             </div>
-            {/* ▲▲▲ 新增結束 ▲▲▲ */}
+
             <div className="grid grid-cols-2 gap-4">
               <Card className="p-5">
                 <p className="text-slate-400 text-xs font-bold mb-1">
@@ -439,7 +534,7 @@ export default function App() {
               <h3 className="font-bold text-slate-700 mb-4">
                 今日概況 ({selectedDate.slice(5)})
               </h3>
-              <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="grid grid-cols-2 gap-3 text-center">
                 <div className="bg-blue-50 rounded-xl p-3">
                   <Droplet className="h-5 w-5 text-blue-500 mx-auto mb-1" />
                   <span className="text-sm font-bold text-slate-700">
@@ -481,25 +576,47 @@ export default function App() {
                   >
                     {lastPoop?.date === selectedDate ? '已打卡' : '未記錄'}
                   </span>
-                  <span className="text-[10px] text-slate-400 block">排便</span>
+                  <span className="text-[10px] text-slate-400 block">大號</span>
+                </div>
+                <div className="bg-pink-50 rounded-xl p-3">
+                  <Cookie className="h-5 w-5 text-pink-500 mx-auto mb-1" />
+                  <span className="text-sm font-bold text-slate-700">
+                    {todaysLogs.filter((l) => l.category === 'craving').length}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block">
+                    嘴饞次數
+                  </span>
                 </div>
               </div>
             </Card>
 
-            {/* 修正 3 (選用): 如果希望總覽頁面的圖表能填滿下方剩餘空間，
-                可以將 h-64 改為 flex-1 min-h-[250px]，並確保父層也有 flex 設定。
-                目前暫時保持 h-64 避免圖表變形。
-            */}
             <Card className="p-5 pb-0 h-64">
-              <p className="text-xs font-bold text-slate-400 uppercase mb-4">
-                體重趨勢
-              </p>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-bold text-slate-400 uppercase">
+                  體重 & 體脂趨勢
+                </p>
+                <div className="flex gap-3 text-[10px] font-bold">
+                  <div className="flex items-center gap-1 text-indigo-600">
+                    <div className="w-2 h-2 rounded-full bg-indigo-600"></div>
+                    體重
+                  </div>
+                  <div className="flex items-center gap-1 text-teal-500">
+                    <div className="w-2 h-2 rounded-full bg-teal-500"></div>
+                    體脂
+                  </div>
+                </div>
+              </div>
+
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
-                    <linearGradient id="cw" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorFat" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
@@ -511,27 +628,68 @@ export default function App() {
                     dataKey="displayDate"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 10, fill: '#94a3b8' }}
                     dy={10}
                   />
                   <YAxis
+                    yAxisId="left"
                     domain={['auto', 'auto']}
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
+                    hide={true} 
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    domain={['auto', 'auto']}
+                    hide={true}
                   />
                   <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                    labelStyle={{ marginBottom: '8px', color: '#64748b', fontSize: '12px' }}
                   />
                   <Area
+                    yAxisId="left"
                     type="monotone"
                     dataKey="weight"
+                    name="體重"
+                    unit="kg"
                     stroke="#6366f1"
                     strokeWidth={3}
-                    fill="url(#cw)"
+                    fill="url(#colorWeight)"
+                  />
+                  <Area
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="bodyFat"
+                    name="體脂"
+                    unit="%"
+                    stroke="#14b8a6"
+                    strokeWidth={3}
+                    fill="url(#colorFat)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
+            </Card>
+
+            {/* 資料救援面板 (暫時保留) */}
+            <Card className="p-5 mt-8 border-2 border-red-100 bg-red-50">
+              <h3 className="font-bold text-red-600 mb-2">🚑 資料救援中心</h3>
+              <p className="text-xs text-red-400 mb-2">搬完後記得刪除這區塊</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={rescueId}
+                  onChange={(e) => setRescueId(e.target.value)}
+                  placeholder="貼上舊的 User ID"
+                  className="flex-1 p-2 rounded-lg border border-red-200 text-sm"
+                />
+                <button
+                  onClick={handleRescueData}
+                  className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold"
+                >
+                  開始搬家
+                </button>
+              </div>
             </Card>
           </>
         )}
@@ -539,22 +697,27 @@ export default function App() {
         {/* --- DAILY LIFE --- */}
         {activeTab === 'daily' && (
           <div className="space-y-6">
-            {/* ... 日常頁面的內容保持不變 ... */}
-            {/* 為了節省篇幅，這裡省略中間內容，請保留您原本的程式碼 */}
-            {/* 這裡放入原本 daily 的所有內容 */}
-            <div className="flex items-center justify-between bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
+            <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-slate-100 gap-2">
               <button
                 onClick={() => {
                   const d = new Date(selectedDate);
                   d.setDate(d.getDate() - 1);
                   setSelectedDate(d.toISOString().split('T')[0]);
                 }}
-                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg"
+                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform shrink-0"
               >
                 ←
               </button>
-              <div className="font-bold text-slate-700 flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-indigo-500" /> {selectedDate}
+              <div className="relative flex-1">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500 pointer-events-none" />
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    if (e.target.value) setSelectedDate(e.target.value);
+                  }}
+                  className="w-full bg-slate-50 text-slate-700 font-bold text-sm py-2 pl-10 pr-2 rounded-xl border border-slate-100 outline-none focus:ring-2 focus:ring-indigo-200 cursor-pointer appearance-none"
+                />
               </div>
               <button
                 onClick={() => {
@@ -562,73 +725,79 @@ export default function App() {
                   d.setDate(d.getDate() + 1);
                   setSelectedDate(d.toISOString().split('T')[0]);
                 }}
-                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg"
+                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform shrink-0"
               >
                 →
               </button>
             </div>
 
-            <Card className="p-5 bg-gradient-to-br from-blue-500 to-cyan-400 text-white border-none relative overflow-hidden">
-              <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/20 rounded-full blur-2xl" />
-              <div className="relative z-10">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="font-bold text-blue-50 flex items-center gap-2">
-                      <Droplet className="h-5 w-5" /> 今日飲水
-                    </h3>
-                    <div className="text-4xl font-extrabold mt-2">
-                      {waterTotal}{' '}
-                      <span className="text-lg font-normal opacity-80">ml</span>
+            <Card className="p-5 bg-gradient-to-br from-blue-500 to-blue-400 text-white">
+              <div className="flex justify-between items-center mb-5">
+                <div>
+                  <h3 className="font-bold flex items-center gap-2 mb-2 text-blue-50">
+                    <Droplet className="h-5 w-5" /> 今日飲水
+                  </h3>
+                  <div className="flex items-baseline gap-1">
+                    <div className="text-5xl sm:text-6xl font-extrabold leading-none">
+                      {waterTotal}
                     </div>
+                    <span className="text-xl font-bold text-blue-100">ml</span>
                   </div>
-                  <div className="bg-white/20 backdrop-blur-sm rounded-xl p-2 text-center min-w-[80px]">
-                    <div className="text-[10px] font-bold uppercase opacity-70 mb-1">
-                      水瓶設定
-                    </div>
+                  <div className="text-sm text-blue-100 mt-1">
+                    目標: 2000ml
+                  </div>
+                </div>
+                <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm ml-4 shrink-0 text-center">
+                  <label className="block text-xs font-bold mb-1 text-blue-100">
+                    水瓶設定
+                  </label>
+                  <div className="flex items-center justify-center">
                     <input
                       type="number"
                       value={waterBottleSize}
-                      onChange={(e) =>
-                        setWaterBottleSize(Number(e.target.value))
-                      }
-                      className="w-full bg-transparent text-center font-bold text-white border-b border-white/30 focus:outline-none focus:border-white text-lg"
+                      onChange={(e) => setWaterBottleSize(Number(e.target.value))}
+                      className="w-16 bg-transparent text-center text-xl font-bold outline-none border-b-2 border-blue-100/30 focus:border-blue-100 py-0 text-white"
                     />
                   </div>
                 </div>
-                <button
-                  onClick={() =>
-                    addDailyLog('water', null, waterBottleSize, null)
-                  }
-                  className="w-full bg-white text-blue-600 py-3 rounded-xl font-bold shadow-lg active:scale-[0.98] transition-transform flex justify-center items-center gap-2"
-                >
-                  <Plus className="h-5 w-5" /> 喝了一瓶 ({waterBottleSize}ml)
-                </button>
-
-                {todaysLogs.filter((l) => l.category === 'water').length >
-                  0 && (
-                  <div className="mt-4 pt-4 border-t border-white/20 space-y-2">
-                    <p className="text-xs font-bold text-blue-100">今日記錄</p>
-                    <div className="flex flex-wrap gap-2">
-                      {todaysLogs
-                        .filter((l) => l.category === 'water')
-                        .map((log) => (
-                          <div
-                            key={log.id}
-                            className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-2"
-                          >
-                            {log.value}ml
-                            <button
-                              onClick={() => deleteItem('daily_logs', log.id)}
-                              className="hover:text-red-200"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
               </div>
+              
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => addDailyLog('water', null, waterBottleSize, null)} 
+                  className="bg-white/20 hover:bg-white/30 text-white font-bold py-3 rounded-xl flex flex-col items-center transition-all active:scale-95 col-span-2 border border-white/10"
+                >
+                  <span className="text-sm text-blue-100">加入一杯</span>
+                  <span className="text-xl">+{waterBottleSize}ml</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const custom = prompt('輸入水量 (ml):');
+                    if (custom) addDailyLog('water', null, Number(custom), null);
+                  }}
+                  className="bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl flex flex-col items-center justify-center transition-all active:scale-95 border border-white/10"
+                >
+                  <Plus className="h-6 w-6 mb-1" />
+                  <span className="text-sm text-blue-100">自訂</span>
+                </button>
+              </div>
+
+              {todaysLogs.filter((l) => l.category === 'water').length > 0 && (
+                <div className="mt-4 pt-4 border-t border-white/20 flex flex-wrap gap-2">
+                  {todaysLogs
+                    .filter((l) => l.category === 'water')
+                    .map((log) => (
+                      <button
+                        key={log.id}
+                        onClick={() => deleteItem('daily_logs', log.id)}
+                        className="bg-white/20 hover:bg-red-500/50 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 transition-colors"
+                        title="點擊刪除"
+                      >
+                        {log.value}ml <span className="opacity-60">×</span>
+                      </button>
+                    ))}
+                </div>
+              )}
             </Card>
 
             <div className="space-y-3">
@@ -744,12 +913,20 @@ export default function App() {
                   <div className="bg-green-50 p-3 rounded-full mb-3 text-green-600">
                     <CheckCircle2 className="h-6 w-6" />
                   </div>
-                  <h4 className="font-bold text-slate-700 mb-1">排便記錄</h4>
-                  <p className="text-xs text-slate-400 mb-4">
-                    上次: {lastPoop ? lastPoop.date.slice(5) : '無'}
+                  <h4 className="font-bold text-slate-700 mb-1">大號記錄</h4>
+                  <p className={`text-xs font-bold mb-4 ${
+                    daysSincePoop > 2 ? 'text-orange-400' : 'text-slate-400'
+                  }`}>
+                    {daysSincePoop === -1 
+                      ? '尚無紀錄' 
+                      : daysSincePoop === 0 
+                      ? '就是今天' 
+                      : daysSincePoop === 1 
+                      ? '昨天' 
+                      : `距離上次 ${daysSincePoop} 天`}
                   </p>
                   <button
-                    onClick={() => addDailyLog('poop', null, null, '排便打卡')}
+                    onClick={() => addDailyLog('poop', null, null, '大號打卡')}
                     className="w-full py-2 bg-green-100 text-green-700 rounded-xl font-bold text-sm hover:bg-green-200"
                   >
                     + 記錄一次
@@ -813,6 +990,69 @@ export default function App() {
         {/* --- INJECTIONS --- */}
         {activeTab === 'injections' && (
           <div className="space-y-4 animate-fade-in">
+            <Card className="p-5">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-indigo-500" /> 
+                  本月記錄 ({new Date().getMonth() + 1}月)
+                </h3>
+                <div className="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
+                  ● 紫色圓點為注射日
+                </div>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                {['日', '一', '二', '三', '四', '五', '六'].map((d) => (
+                  <div key={d} className="text-xs text-slate-400 font-medium py-1">
+                    {d}
+                  </div>
+                ))}
+              </div>
+              
+              <div className="grid grid-cols-7 gap-1">
+                {(() => {
+                  const today = new Date();
+                  const year = today.getFullYear();
+                  const month = today.getMonth();
+                  const daysInMonth = new Date(year, month + 1, 0).getDate();
+                  const firstDayOfMonth = new Date(year, month, 1).getDay();
+
+                  const days = [];
+                  for (let i = 0; i < firstDayOfMonth; i++) {
+                    days.push(<div key={`empty-${i}`} />);
+                  }
+
+                  for (let d = 1; d <= daysInMonth; d++) {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const record = injections.find((i) => i.date === dateStr);
+                    const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+                    days.push(
+                      <div
+                        key={d}
+                        className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs relative border 
+                          ${
+                            record
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200'
+                              : isToday
+                              ? 'bg-white border-indigo-200 text-indigo-600 font-bold'
+                              : 'bg-slate-50/50 text-slate-400 border-transparent'
+                          }`}
+                      >
+                        <span className="z-10">{d}</span>
+                        {record && (
+                          <span className="absolute -bottom-1.5 bg-white text-indigo-600 text-[8px] px-1 rounded-full font-bold shadow-sm border border-indigo-100 scale-90">
+                            {record.dosage}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  }
+                  return days;
+                })()}
+              </div>
+            </Card>
+
             <Card className="p-5">
               <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
                 <Plus className="h-4 w-4" /> 新增注射
