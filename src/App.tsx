@@ -33,6 +33,8 @@ import {
   onAuthStateChanged,
   signInAnonymously,
   signInWithCustomToken,
+  GoogleAuthProvider,
+  linkWithPopup,
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -134,6 +136,24 @@ const TabButton = ({ active, label, onClick }: any) => (
 // --- Main App ---
 export default function App() {
   const [user, setUser] = useState<any>(null);
+  // ▼▼▼ 新增：綁定 Google 帳號的函式 ▼▼▼
+  const handleLinkGoogle = async () => {
+    if (!auth.currentUser) return;
+    const provider = new GoogleAuthProvider();
+    try {
+      await linkWithPopup(auth.currentUser, provider);
+      alert("綁定成功！您的資料現在永久安全了 🎉");
+      // 這裡可以強制刷新一下 user 狀態
+      setUser({ ...auth.currentUser });
+    } catch (error: any) {
+      console.error(error);
+      if (error.code === 'auth/credential-already-in-use') {
+        alert("綁定失敗：這個 Google 帳號已經被註冊過了。請換一個帳號試試。");
+      } else {
+        alert("綁定失敗，請稍後再試。");
+      }
+    }
+  };
   const quotes = [
     '我不是在追求完美，我是在學著對自己更溫柔、更持續。',
     '即使進度很慢，我也在扎實地向更健康的自己靠近。',
@@ -366,6 +386,7 @@ export default function App() {
       {/* 背景漸層保持不變 */}
       <div className="fixed top-0 left-0 w-full h-64 bg-gradient-to-br from-indigo-50 via-purple-50 to-white -z-10" />
 
+      {/* ▼▼▼ 請用這段完整的 Header 覆蓋原本的 Header ▼▼▼ */}
       <header className="pt-8 pb-6 px-6">
         <div className="max-w-md mx-auto flex justify-between items-end">
           <div>
@@ -376,11 +397,34 @@ export default function App() {
               健康日記<span className="text-indigo-600">.</span>
             </h1>
           </div>
-          <div className="h-10 w-10 rounded-full bg-white shadow-md flex items-center justify-center border border-indigo-50">
-            <Activity className="h-5 w-5 text-indigo-600" />
-          </div>
+          
+          {/* 右上角綁定按鈕 */}
+          <button
+            onClick={user?.isAnonymous ? handleLinkGoogle : undefined}
+            className={`h-10 w-10 rounded-full shadow-md flex items-center justify-center border transition-all ${
+              user?.isAnonymous
+                ? 'bg-white border-indigo-50 cursor-pointer hover:bg-indigo-50'
+                : 'bg-indigo-600 border-indigo-600'
+            }`}
+            title={user?.isAnonymous ? "點擊綁定 Google 帳號以保存資料" : "帳號已保護"}
+          >
+            {user?.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt="User"
+                className="h-full w-full rounded-full object-cover"
+              />
+            ) : (
+              <Activity
+                className={`h-5 w-5 ${
+                  user?.isAnonymous ? 'text-indigo-600' : 'text-white'
+                }`}
+              />
+            )}
+          </button>
         </div>
       </header>
+      {/* ▲▲▲ 覆蓋結束 ▲▲▲ */}
 
       <div className="px-6 mb-6 sticky top-2 z-30">
         <div className="max-w-md mx-auto bg-white/80 backdrop-blur-md p-1.5 rounded-2xl shadow-lg shadow-slate-200/50 border border-white/50 flex">
