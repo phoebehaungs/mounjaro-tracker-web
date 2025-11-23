@@ -26,7 +26,6 @@ import {
   Sun,
   ChefHat,
   Sparkles,
-  signInWithPopup,
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import {
@@ -36,6 +35,7 @@ import {
   signInWithCustomToken,
   GoogleAuthProvider,
   linkWithPopup,
+  signInWithPopup,
 } from 'firebase/auth';
 import {
   getFirestore,
