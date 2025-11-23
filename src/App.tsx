@@ -324,6 +324,21 @@ export default function App() {
     .filter((l) => l.category === 'poop')
     .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
   const lastPoop = poops[0];
+  // ▼▼▼ 加入這段計算天數的程式碼 ▼▼▼
+  const daysSincePoop = useMemo(() => {
+    if (!lastPoop) return -1;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // 設定今天的時間為 00:00:00
+    
+    // 將 YYYY-MM-DD 拆解，確保用當地時間計算，避免時區誤差
+    const [y, m, d] = lastPoop.date.split('-').map(Number);
+    const last = new Date(y, m - 1, d);
+    
+    const diffTime = today.getTime() - last.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }, [lastPoop]);
+  // ▲▲▲ 加入結束 ▲▲▲
 
   const chartData = useMemo(() => {
     return [...bodyRecords]
@@ -379,6 +394,7 @@ export default function App() {
             label="日常"
             onClick={() => setActiveTab('daily')}
           />
+          
           <TabButton
             active={activeTab === 'injections'}
             label="注射"
@@ -435,11 +451,15 @@ export default function App() {
               </Card>
             </div>
 
+            {/* ▼▼▼ 請替換整個「今日概況」的 Card ▼▼▼ */}
             <Card className="p-5">
               <h3 className="font-bold text-slate-700 mb-4">
                 今日概況 ({selectedDate.slice(5)})
               </h3>
-              <div className="grid grid-cols-3 gap-2 text-center">
+              {/* 改成 grid-cols-2 讓四個格子變兩排，比較整齊 */}
+              <div className="grid grid-cols-2 gap-3 text-center">
+                
+                {/* 1. 水分 (藍色) */}
                 <div className="bg-blue-50 rounded-xl p-3">
                   <Droplet className="h-5 w-5 text-blue-500 mx-auto mb-1" />
                   <span className="text-sm font-bold text-slate-700">
@@ -449,6 +469,8 @@ export default function App() {
                     ml 水分
                   </span>
                 </div>
+
+                {/* 2. 餐食 (橘色) */}
                 <div className="bg-orange-50 rounded-xl p-3">
                   <Utensils className="h-5 w-5 text-orange-500 mx-auto mb-1" />
                   <span className="text-sm font-bold text-slate-700">
@@ -458,6 +480,8 @@ export default function App() {
                     餐記錄
                   </span>
                 </div>
+
+                {/* 3. 大號 (綠色 - 依狀態變色) */}
                 <div
                   className={`rounded-xl p-3 ${
                     lastPoop?.date === selectedDate
@@ -481,92 +505,176 @@ export default function App() {
                   >
                     {lastPoop?.date === selectedDate ? '已打卡' : '未記錄'}
                   </span>
-                  <span className="text-[10px] text-slate-400 block">排便</span>
+                  <span className="text-[10px] text-slate-400 block">大號</span>
                 </div>
+
+                {/* 4. 新增：嘴饞 (粉色) */}
+                <div className="bg-pink-50 rounded-xl p-3">
+                  <Cookie className="h-5 w-5 text-pink-500 mx-auto mb-1" />
+                  <span className="text-sm font-bold text-slate-700">
+                    {todaysLogs.filter(l => l.category === 'craving').length}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block">
+                    嘴饞次數
+                  </span>
+                </div>
+
               </div>
             </Card>
+            {/* ▲▲▲ 替換結束 ▲▲▲ */}
 
             {/* 修正 3 (選用): 如果希望總覽頁面的圖表能填滿下方剩餘空間，
                 可以將 h-64 改為 flex-1 min-h-[250px]，並確保父層也有 flex 設定。
                 目前暫時保持 h-64 避免圖表變形。
             */}
-            <Card className="p-5 pb-0 h-64">
-              <p className="text-xs font-bold text-slate-400 uppercase mb-4">
-                體重趨勢
-              </p>
+{/* ▼▼▼ 請替換整個體重趨勢的 Card ▼▼▼ */}
+<Card className="p-5 pb-0 h-64">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-bold text-slate-400 uppercase">
+                  體重 & 體脂趨勢
+                </p>
+                {/* 簡單的圖例說明 */}
+                <div className="flex gap-3 text-[10px] font-bold">
+                  <div className="flex items-center gap-1 text-indigo-600">
+                    <div className="w-2 h-2 rounded-full bg-indigo-600"></div>
+                    體重
+                  </div>
+                  <div className="flex items-center gap-1 text-teal-500">
+                    <div className="w-2 h-2 rounded-full bg-teal-500"></div>
+                    體脂
+                  </div>
+                </div>
+              </div>
+
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
-                    <linearGradient id="cw" x1="0" y1="0" x2="0" y2="1">
+                    {/* 體重的漸層 (紫色) */}
+                    <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                     </linearGradient>
+                    {/* 體脂的漸層 (青色) */}
+                    <linearGradient id="colorFat" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
+                    </linearGradient>
                   </defs>
+                  
                   <CartesianGrid
                     strokeDasharray="3 3"
                     vertical={false}
                     stroke="#f1f5f9"
                   />
+                  
                   <XAxis
                     dataKey="displayDate"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 10, fill: '#94a3b8' }}
                     dy={10}
                   />
+                  
+                  {/* 左側Y軸：給體重用的 */}
                   <YAxis
+                    yAxisId="left"
                     domain={['auto', 'auto']}
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
+                    hide={true} 
                   />
+                  
+                  {/* 右側Y軸：給體脂用的 (隱藏顯示但負責比例) */}
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    domain={['auto', 'auto']}
+                    hide={true}
+                  />
+
                   <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                    labelStyle={{ marginBottom: '8px', color: '#64748b', fontSize: '12px' }}
                   />
+
+                  {/* 體重曲線 */}
                   <Area
+                    yAxisId="left"
                     type="monotone"
                     dataKey="weight"
+                    name="體重"
+                    unit="kg"
                     stroke="#6366f1"
                     strokeWidth={3}
-                    fill="url(#cw)"
+                    fill="url(#colorWeight)"
+                  />
+
+                  {/* 體脂曲線 */}
+                  <Area
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="bodyFat"
+                    name="體脂"
+                    unit="%"
+                    stroke="#14b8a6"
+                    strokeWidth={3}
+                    fill="url(#colorFat)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
             </Card>
+            {/* ▲▲▲ 替換結束 ▲▲▲ */}
           </>
         )}
 
         {/* --- DAILY LIFE --- */}
         {activeTab === 'daily' && (
           <div className="space-y-6">
-            {/* ... 日常頁面的內容保持不變 ... */}
-            {/* 為了節省篇幅，這裡省略中間內容，請保留您原本的程式碼 */}
-            {/* 這裡放入原本 daily 的所有內容 */}
-            <div className="flex items-center justify-between bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
-              <button
-                onClick={() => {
-                  const d = new Date(selectedDate);
-                  d.setDate(d.getDate() - 1);
-                  setSelectedDate(d.toISOString().split('T')[0]);
+            
+           {/* ... 上面是 activeTab === 'daily' && ( ... */}
+<div className="space-y-6">
+  {/* ▼▼▼ 請把原本的日期導航區塊替換成這一段 (新版) ▼▼▼ */}
+  <div className="flex items-center justify-between bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
+            {/* 左箭頭 */}
+            <button
+              onClick={() => {
+                const d = new Date(selectedDate);
+                d.setDate(d.getDate() - 1);
+                setSelectedDate(d.toISOString().split('T')[0]);
+              }}
+              className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform"
+            >
+              ←
+            </button>
+
+            {/* 中間：直接顯示日期選擇器 */}
+            <div className="relative">
+              {/* 裝飾用的圖示，設定 pointer-events-none 讓點擊直接穿透到 input */}
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500 pointer-events-none" />
+              
+              {/* 這是真的日期輸入框，設定了 padding 讓文字不會壓到圖示 */}
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => {
+                  if (e.target.value) setSelectedDate(e.target.value);
                 }}
-                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg"
-              >
-                ←
-              </button>
-              <div className="font-bold text-slate-700 flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-indigo-500" /> {selectedDate}
-              </div>
-              <button
-                onClick={() => {
-                  const d = new Date(selectedDate);
-                  d.setDate(d.getDate() + 1);
-                  setSelectedDate(d.toISOString().split('T')[0]);
-                }}
-                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg"
-              >
-                →
-              </button>
+                className="bg-slate-50 text-slate-700 font-bold py-2 pl-10 pr-4 rounded-xl border border-slate-100 outline-none focus:ring-2 focus:ring-indigo-200 cursor-pointer appearance-none"
+              />
             </div>
+
+            {/* 右箭頭 */}
+            <button
+              onClick={() => {
+                const d = new Date(selectedDate);
+                d.setDate(d.getDate() + 1);
+                setSelectedDate(d.toISOString().split('T')[0]);
+              }}
+              className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform"
+            >
+              →
+            </button>
+          </div>
+          {/* ▲▲▲ 替換結束 ▲▲▲ */}
 
             <Card className="p-5 bg-gradient-to-br from-blue-500 to-cyan-400 text-white border-none relative overflow-hidden">
               <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/20 rounded-full blur-2xl" />
@@ -745,9 +853,19 @@ export default function App() {
                     <CheckCircle2 className="h-6 w-6" />
                   </div>
                   <h4 className="font-bold text-slate-700 mb-1">排便記錄</h4>
-                  <p className="text-xs text-slate-400 mb-4">
-                    上次: {lastPoop ? lastPoop.date.slice(5) : '無'}
+                  {/* ▼▼▼ 替換成這段顯示天數的程式碼 ▼▼▼ */}
+                  <p className={`text-xs font-bold mb-4 ${
+                    daysSincePoop > 2 ? 'text-orange-400' : 'text-slate-400'
+                  }`}>
+                    {daysSincePoop === -1 
+                      ? '尚無紀錄' 
+                      : daysSincePoop === 0 
+                      ? '就是今天' 
+                      : daysSincePoop === 1 
+                      ? '昨天' 
+                      : `距離上次 ${daysSincePoop} 天`}
                   </p>
+                  {/* ▲▲▲ 替換結束 ▲▲▲ */}
                   <button
                     onClick={() => addDailyLog('poop', null, null, '排便打卡')}
                     className="w-full py-2 bg-green-100 text-green-700 rounded-xl font-bold text-sm hover:bg-green-200"
@@ -808,11 +926,78 @@ export default function App() {
               </div>
             </div>
           </div>
+          </div>
         )}
 
-        {/* --- INJECTIONS --- */}
-        {activeTab === 'injections' && (
+{/* --- INJECTIONS --- */}
+{activeTab === 'injections' && (
           <div className="space-y-4 animate-fade-in">
+            
+            {/* 月曆圖表 */}
+            <Card className="p-5">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-indigo-500" /> 
+                  本月記錄 ({new Date().getMonth() + 1}月)
+                </h3>
+                <div className="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
+                  ● 紫色圓點為注射日
+                </div>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                {['日', '一', '二', '三', '四', '五', '六'].map((d) => (
+                  <div key={d} className="text-xs text-slate-400 font-medium py-1">
+                    {d}
+                  </div>
+                ))}
+              </div>
+              
+              <div className="grid grid-cols-7 gap-1">
+                {(() => {
+                  const today = new Date();
+                  const year = today.getFullYear();
+                  const month = today.getMonth();
+                  const daysInMonth = new Date(year, month + 1, 0).getDate();
+                  const firstDayOfMonth = new Date(year, month, 1).getDay();
+
+                  const days = [];
+                  for (let i = 0; i < firstDayOfMonth; i++) {
+                    days.push(<div key={`empty-${i}`} />);
+                  }
+
+                  for (let d = 1; d <= daysInMonth; d++) {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const record = injections.find((i) => i.date === dateStr);
+                    const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+                    days.push(
+                      <div
+                        key={d}
+                        className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs relative border 
+                          ${
+                            record
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200'
+                              : isToday
+                              ? 'bg-white border-indigo-200 text-indigo-600 font-bold'
+                              : 'bg-slate-50/50 text-slate-400 border-transparent'
+                          }`}
+                      >
+                        <span className="z-10">{d}</span>
+                        {record && (
+                          <span className="absolute -bottom-1.5 bg-white text-indigo-600 text-[8px] px-1 rounded-full font-bold shadow-sm border border-indigo-100 scale-90">
+                            {record.dosage}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  }
+                  return days;
+                })()}
+              </div>
+            </Card>
+
+            {/* 新增注射卡片 */}
             <Card className="p-5">
               <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
                 <Plus className="h-4 w-4" /> 新增注射
@@ -863,6 +1048,8 @@ export default function App() {
                 <PrimaryButton onClick={addInjection} label="儲存" />
               </div>
             </Card>
+
+            {/* 歷史列表 */}
             <div className="space-y-3">
               {injections.map((i) => (
                 <Card
