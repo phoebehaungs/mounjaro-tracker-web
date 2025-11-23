@@ -562,7 +562,7 @@ export default function App() {
                   </span>
                 </div>
 
-                {/* 3. 大號 (綠色 - 依狀態變色) */}
+                {/* 3. 排便 (綠色 - 依狀態變色) */}
                 <div
                   className={`rounded-xl p-3 ${
                     lastPoop?.date === selectedDate
@@ -586,7 +586,7 @@ export default function App() {
                   >
                     {lastPoop?.date === selectedDate ? '已打卡' : '未記錄'}
                   </span>
-                  <span className="text-[10px] text-slate-400 block">大號</span>
+                  <span className="text-[10px] text-slate-400 block">排便</span>
                 </div>
 
                 {/* 4. 新增：嘴饞 (粉色) */}
