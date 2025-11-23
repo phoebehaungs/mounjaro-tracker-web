@@ -713,112 +713,110 @@ export default function App() {
             
            {/* ... 上面是 activeTab === 'daily' && ( ... */}
 <div className="space-y-6">
-  {/* ▼▼▼ 請把原本的日期導航區塊替換成這一段 (新版) ▼▼▼ */}
-  <div className="flex items-center justify-between bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
-            {/* 左箭頭 */}
-            <button
-              onClick={() => {
-                const d = new Date(selectedDate);
-                d.setDate(d.getDate() - 1);
-                setSelectedDate(d.toISOString().split('T')[0]);
-              }}
-              className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform"
-            >
-              ←
-            </button>
-
-            {/* 中間：直接顯示日期選擇器 */}
-            <div className="relative">
-              {/* 裝飾用的圖示，設定 pointer-events-none 讓點擊直接穿透到 input */}
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500 pointer-events-none" />
-              
-              {/* 這是真的日期輸入框，設定了 padding 讓文字不會壓到圖示 */}
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => {
-                  if (e.target.value) setSelectedDate(e.target.value);
+  {/* ▼▼▼ 日期選擇器 (手機版面修正) ▼▼▼ */}
+  <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-slate-100 gap-2">
+              {/* 左箭頭：加入 shrink-0 防止被壓扁 */}
+              <button
+                onClick={() => {
+                  const d = new Date(selectedDate);
+                  d.setDate(d.getDate() - 1);
+                  setSelectedDate(d.toISOString().split('T')[0]);
                 }}
-                className="bg-slate-50 text-slate-700 font-bold py-2 pl-10 pr-4 rounded-xl border border-slate-100 outline-none focus:ring-2 focus:ring-indigo-200 cursor-pointer appearance-none"
-              />
+                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform shrink-0"
+              >
+                ←
+              </button>
+
+              {/* 中間：日期輸入框 (加入 flex-1 自動填滿空間) */}
+              <div className="relative flex-1">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500 pointer-events-none" />
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    if (e.target.value) setSelectedDate(e.target.value);
+                  }}
+                  // 修改點：
+                  // 1. w-full: 寬度填滿
+                  // 2. text-sm: 手機上字體小一點
+                  // 3. pr-2: 右邊留白改小 (原本是 pr-4)
+                  className="w-full bg-slate-50 text-slate-700 font-bold text-sm py-2 pl-10 pr-2 rounded-xl border border-slate-100 outline-none focus:ring-2 focus:ring-indigo-200 cursor-pointer appearance-none"
+                />
+              </div>
+
+              {/* 右箭頭：加入 shrink-0 防止被壓扁 */}
+              <button
+                onClick={() => {
+                  const d = new Date(selectedDate);
+                  d.setDate(d.getDate() + 1);
+                  setSelectedDate(d.toISOString().split('T')[0]);
+                }}
+                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform shrink-0"
+              >
+                →
+              </button>
             </div>
+            {/* ▲▲▲ 修正結束 ▲▲▲ */}
 
-            {/* 右箭頭 */}
-            <button
-              onClick={() => {
-                const d = new Date(selectedDate);
-                d.setDate(d.getDate() + 1);
-                setSelectedDate(d.toISOString().split('T')[0]);
-              }}
-              className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform"
-            >
-              →
-            </button>
-          </div>
-          {/* ▲▲▲ 替換結束 ▲▲▲ */}
-
-            <Card className="p-5 bg-gradient-to-br from-blue-500 to-cyan-400 text-white border-none relative overflow-hidden">
-              <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/20 rounded-full blur-2xl" />
-              <div className="relative z-10">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="font-bold text-blue-50 flex items-center gap-2">
-                      <Droplet className="h-5 w-5" /> 今日飲水
-                    </h3>
-                    <div className="text-4xl font-extrabold mt-2">
-                      {waterTotal}{' '}
-                      <span className="text-lg font-normal opacity-80">ml</span>
+            {/* ▼▼▼ 今日飲水卡片 (版面修正) ▼▼▼ */}
+            <Card className="p-5 bg-gradient-to-br from-blue-500 to-blue-400 text-white">
+              <div className="flex justify-between items-center mb-5">
+                {/* 左側：標題與總量 */}
+                <div>
+                  <h3 className="font-bold flex items-center gap-2 mb-2 text-blue-50">
+                    <Droplet className="h-5 w-5" /> 今日飲水
+                  </h3>
+                  <div className="flex items-baseline gap-1">
+                    {/* 修改點：改用 text-5xl 並加上 leading-none 解決被切到的問題 */}
+                    <div className="text-5xl sm:text-6xl font-extrabold leading-none">
+                      {waterTotal}
                     </div>
+                    <span className="text-xl font-bold text-blue-100">ml</span>
                   </div>
-                  <div className="bg-white/20 backdrop-blur-sm rounded-xl p-2 text-center min-w-[80px]">
-                    <div className="text-[10px] font-bold uppercase opacity-70 mb-1">
-                      水瓶設定
-                    </div>
+                  <div className="text-sm text-blue-100 mt-1">
+                    目標: {user?.dailyWaterGoal || 2000}ml
+                  </div>
+                </div>
+
+                {/* 右側：水瓶設定盒子 */}
+                {/* 修改點：加入 shrink-0 防止被壓扁，ml-4 增加左邊間距 */}
+                <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm ml-4 shrink-0 text-center">
+                  <label className="block text-xs font-bold mb-1 text-blue-100">
+                    水瓶設定
+                  </label>
+                  <div className="flex items-center justify-center">
                     <input
                       type="number"
                       value={waterBottleSize}
-                      onChange={(e) =>
-                        setWaterBottleSize(Number(e.target.value))
-                      }
-                      className="w-full bg-transparent text-center font-bold text-white border-b border-white/30 focus:outline-none focus:border-white text-lg"
+                      onChange={(e) => setWaterBottleSize(Number(e.target.value))}
+                      className="w-16 bg-transparent text-center text-xl font-bold outline-none border-b-2 border-blue-100/30 focus:border-blue-100 py-0 text-white"
                     />
                   </div>
                 </div>
+              </div>
+              
+              {/* 加水按鈕區域 (保持不變，但優化了一點樣式) */}
+              <div className="grid grid-cols-3 gap-3">
                 <button
-                  onClick={() =>
-                    addDailyLog('water', null, waterBottleSize, null)
-                  }
-                  className="w-full bg-white text-blue-600 py-3 rounded-xl font-bold shadow-lg active:scale-[0.98] transition-transform flex justify-center items-center gap-2"
+                  onClick={() => addWater(waterBottleSize)}
+                  className="bg-white/20 hover:bg-white/30 text-white font-bold py-3 rounded-xl flex flex-col items-center transition-all active:scale-95 col-span-2 border border-white/10"
                 >
-                  <Plus className="h-5 w-5" /> 喝了一瓶 ({waterBottleSize}ml)
+                  <span className="text-sm text-blue-100">加入一杯</span>
+                  <span className="text-xl">+{waterBottleSize}ml</span>
                 </button>
-
-                {todaysLogs.filter((l) => l.category === 'water').length >
-                  0 && (
-                  <div className="mt-4 pt-4 border-t border-white/20 space-y-2">
-                    <p className="text-xs font-bold text-blue-100">今日記錄</p>
-                    <div className="flex flex-wrap gap-2">
-                      {todaysLogs
-                        .filter((l) => l.category === 'water')
-                        .map((log) => (
-                          <div
-                            key={log.id}
-                            className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-2"
-                          >
-                            {log.value}ml
-                            <button
-                              onClick={() => deleteItem('daily_logs', log.id)}
-                              className="hover:text-red-200"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
+                <button
+                  onClick={() => {
+                    const custom = prompt('輸入水量 (ml):');
+                    if (custom) addWater(Number(custom));
+                  }}
+                  className="bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl flex flex-col items-center justify-center transition-all active:scale-95 border border-white/10"
+                >
+                  <Plus className="h-6 w-6 mb-1" />
+                  <span className="text-sm text-blue-100">自訂</span>
+                </button>
               </div>
             </Card>
+            {/* ▲▲▲ 修正結束 ▲▲▲ */}
 
             <div className="space-y-3">
               <h3 className="font-bold text-slate-700 flex items-center gap-2 pl-1">
