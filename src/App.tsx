@@ -45,7 +45,6 @@ import {
   doc,
   onSnapshot,
   serverTimestamp,
-  getDocs,
 } from 'firebase/firestore';
 
 // --- Firebase Config ---
@@ -137,36 +136,6 @@ const TabButton = ({ active, label, onClick }: any) => (
 
 // --- Main App ---
 export default function App() {
-  // ▼▼▼ 資料救援工具開始 ▼▼▼
-  const [rescueId, setRescueId] = useState('');
-
-  const handleRescueData = async () => {
-    if (!user || !rescueId) return alert("請輸入舊 ID");
-    if (!confirm(`確定要從舊帳號 (${rescueId}) 把資料搬過來嗎？`)) return;
-
-    const collections = ['injections', 'measurements', 'daily_logs'];
-    let count = 0;
-
-    try {
-      for (const collName of collections) {
-        // 1. 去舊家找資料
-        const oldRef = collection(db, 'artifacts', appId, 'users', rescueId, collName);
-        const snapshot = await getDocs(oldRef);
-
-        // 2. 一筆一筆搬到新家
-        for (const docSnap of snapshot.docs) {
-          const data = docSnap.data();
-          await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, collName), data);
-          count++;
-        }
-      }
-      alert(`救援成功！總共搬運了 ${count} 筆資料。\n請重新整理頁面查看。`);
-    } catch (e: any) {
-      console.error(e);
-      alert("救援失敗：" + e.message);
-    }
-  };
-  // ▲▲▲ 資料救援工具結束 ▲▲▲
   const [user, setUser] = useState<any>(null);
   // ▼▼▼ 新增：綁定 Google 帳號的函式 ▼▼▼
   // ▼▼▼ 請替換成這個聰明版的新函式 ▼▼▼
@@ -724,27 +693,6 @@ export default function App() {
                 </AreaChart>
               </ResponsiveContainer>
             </Card>
-            {/* ▼▼▼ 暫時的救援面板 ▼▼▼ */}
-            <Card className="p-5 mt-8 border-2 border-red-100 bg-red-50">
-              <h3 className="font-bold text-red-600 mb-2">🚑 資料救援中心</h3>
-              <p className="text-xs text-red-400 mb-2">搬完後記得刪除這區塊</p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={rescueId}
-                  onChange={(e) => setRescueId(e.target.value)}
-                  placeholder="貼上舊的 User ID"
-                  className="flex-1 p-2 rounded-lg border border-red-200 text-sm"
-                />
-                <button
-                  onClick={handleRescueData}
-                  className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold"
-                >
-                  開始搬家
-                </button>
-              </div>
-            </Card>
-            {/* ▲▲▲ 面板結束 ▲▲▲ */}
             {/* ▲▲▲ 替換結束 ▲▲▲ */}
           </>
         )}
