@@ -233,19 +233,29 @@ export default function App() {
   >(null);
 
   // --- Auth & Load ---
+  // --- Auth & Load (修正版：自動記住登入狀態) ---
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        await signInAnonymously(auth);
-      } catch (e) {
-        console.error('Auth Error', e);
+    // 監聽登入狀態改變 (這個函式會在網頁載入時自動檢查是否有舊紀錄)
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      
+      if (currentUser) {
+        // 情況 1：發現舊帳號 (不管是 Google 還是訪客)
+        // 直接使用這個帳號，不需要重新登入
+        console.log("歡迎回來:", currentUser.uid);
+        setUser(currentUser);
+        setLoading(false);
+      } else {
+        // 情況 2：真的沒有人登入 (完全的新訪客)
+        // 這時候才去建立一個新的訪客帳號
+        console.log("建立新訪客...");
+        signInAnonymously(auth)
+          .catch((err) => console.error("Login Error:", err));
+          // 注意：signInAnonymously 成功後，會再次觸發上面的情況 1，所以不用在這裡 setUser
       }
-    };
-    initAuth();
-    onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
     });
+
+    // 清理函式
+    return () => unsubscribe();
   }, []);
 
   // --- Realtime Listeners ---
