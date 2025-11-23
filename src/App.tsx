@@ -25,7 +25,7 @@ import {
   Moon,
   Sun,
   ChefHat,
-  Sparkles, // 語錄圖示
+  Sparkles,
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import {
@@ -35,8 +35,8 @@ import {
   signInWithCustomToken,
   GoogleAuthProvider,
   linkWithPopup,
-  signInWithPopup, // 登入用
-  signOut,         // 登出用
+  signInWithPopup,
+  signOut,
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -46,7 +46,6 @@ import {
   doc,
   onSnapshot,
   serverTimestamp,
-  getDocs, // 救援工具用
 } from 'firebase/firestore';
 
 // --- Firebase Config ---
@@ -152,7 +151,7 @@ export default function App() {
     new Date().toISOString().split('T')[0]
   );
   const [injDosage, setInjDosage] = useState('2.5');
-  const [injSite, setInjSite] = useState('左上腹'); // 預設改為左上腹
+  const [injSite, setInjSite] = useState('左上腹');
   const [injNotes, setInjNotes] = useState('');
   const [bodyDate, setBodyDate] = useState(
     new Date().toISOString().split('T')[0]
@@ -165,14 +164,11 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [waterBottleSize, setWaterBottleSize] = useState(1200); // 預設 1200ml
+  const [waterBottleSize, setWaterBottleSize] = useState(1200);
   const [mealContent, setMealContent] = useState('');
   const [activeMealType, setActiveMealType] = useState<
     'breakfast' | 'lunch' | 'dinner' | 'snack' | null
   >(null);
-
-  // 救援工具 ID
-  const [rescueId, setRescueId] = useState('');
 
   // 語錄
   const quotes = [
@@ -193,7 +189,7 @@ export default function App() {
     return quotes[Math.floor(Math.random() * quotes.length)];
   }, []);
 
-  // --- Auth Logic (自動記憶) ---
+  // --- Auth Logic ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
@@ -257,7 +253,7 @@ export default function App() {
     };
   }, [user]);
 
-  // --- Handlers (Action) ---
+  // --- Handlers ---
   const addInjection = async () => {
     if (!user) return;
     await addDoc(
@@ -321,7 +317,7 @@ export default function App() {
     await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, coll, id));
   };
 
-  // --- Auth Handlers (Link / Sign In / Logout) ---
+  // --- Auth Handlers ---
   const handleLinkGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
@@ -357,31 +353,6 @@ export default function App() {
     }
   };
 
-  // --- Rescue Handler ---
-  const handleRescueData = async () => {
-    if (!user || !rescueId) return alert("請輸入舊 ID");
-    if (!confirm(`確定要從舊帳號 (${rescueId}) 把資料搬過來嗎？`)) return;
-
-    const collections = ['injections', 'measurements', 'daily_logs'];
-    let count = 0;
-
-    try {
-      for (const collName of collections) {
-        const oldRef = collection(db, 'artifacts', appId, 'users', rescueId, collName);
-        const snapshot = await getDocs(oldRef);
-        for (const docSnap of snapshot.docs) {
-          const data = docSnap.data();
-          await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, collName), data);
-          count++;
-        }
-      }
-      alert(`救援成功！總共搬運了 ${count} 筆資料。\n請重新整理頁面查看。`);
-    } catch (e: any) {
-      console.error(e);
-      alert("救援失敗：" + e.message);
-    }
-  };
-
   // --- Computed Data ---
   const todaysLogs = dailyLogs.filter((l) => l.date === selectedDate);
   const waterTotal = todaysLogs
@@ -393,7 +364,6 @@ export default function App() {
     .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
   const lastPoop = poops[0];
 
-  // 計算排便天數
   const daysSincePoop = useMemo(() => {
     if (!lastPoop) return -1;
     const today = new Date();
@@ -437,7 +407,6 @@ export default function App() {
               健康日記<span className="text-indigo-600">.</span>
             </h1>
           </div>
-          {/* 全能版按鈕：綁定/登入/登出 */}
           <button
             onClick={user?.isAnonymous ? handleLinkGoogle : handleLogout}
             className={`h-10 w-10 rounded-full shadow-md flex items-center justify-center border transition-all cursor-pointer ${
@@ -669,27 +638,6 @@ export default function App() {
                   />
                 </AreaChart>
               </ResponsiveContainer>
-            </Card>
-
-            {/* 資料救援面板 (暫時保留) */}
-            <Card className="p-5 mt-8 border-2 border-red-100 bg-red-50">
-              <h3 className="font-bold text-red-600 mb-2">🚑 資料救援中心</h3>
-              <p className="text-xs text-red-400 mb-2">搬完後記得刪除這區塊</p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={rescueId}
-                  onChange={(e) => setRescueId(e.target.value)}
-                  placeholder="貼上舊的 User ID"
-                  className="flex-1 p-2 rounded-lg border border-red-200 text-sm"
-                />
-                <button
-                  onClick={handleRescueData}
-                  className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold"
-                >
-                  開始搬家
-                </button>
-              </div>
             </Card>
           </>
         )}
