@@ -33,9 +33,6 @@ import {
   onAuthStateChanged,
   signInAnonymously,
   signInWithCustomToken,
-  GoogleAuthProvider,
-  linkWithPopup,
-  signInWithPopup,
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -137,50 +134,6 @@ const TabButton = ({ active, label, onClick }: any) => (
 // --- Main App ---
 export default function App() {
   const [user, setUser] = useState<any>(null);
-  // ▼▼▼ 新增：綁定 Google 帳號的函式 ▼▼▼
-  // ▼▼▼ 請替換成這個聰明版的新函式 ▼▼▼
-  // ▼▼▼ 請替換成這段新的函式 ▼▼▼
-  const handleLinkGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    
-    try {
-      // 1. 先嘗試「綁定」 (Link)
-      // 邏輯：假設這是您第一次想把目前的訪客資料存起來
-      if (auth.currentUser) {
-        await linkWithPopup(auth.currentUser, provider);
-        alert("綁定成功！您的資料現在永久安全了 🎉");
-        // 重新整理一下狀態
-        setUser({ ...auth.currentUser });
-      }
-    } catch (error: any) {
-      console.error("Binding Error:", error);
-      
-      // 2. 關鍵時刻：如果報錯代碼是 'credential-already-in-use'
-      // 代表這個 Google 帳號已經是舊用戶了（您在 Firefox 綁定過了）
-      if (error.code === 'auth/credential-already-in-use') {
-        
-        // 跳出視窗詢問使用者
-        const wantToSwitch = window.confirm(
-          "這個 Google 帳號已經有舊資料了！\n\n您是否要切換回該帳號？\n(注意：目前這個空白的暫存記錄將會消失)"
-        );
-
-        if (wantToSwitch) {
-          try {
-            // 3. 執行「登入」 (Sign In) 取代目前的訪客
-            await signInWithPopup(auth, provider);
-            // 登入成功後，React 會自動偵測到 user 變了，畫面就會自動換成舊資料
-          } catch (signInError) {
-            console.error("Sign In Error:", signInError);
-            alert("登入失敗，請稍後再試。");
-          }
-        }
-      } else {
-        // 其他錯誤（例如網路斷線、視窗被關閉）
-        alert("操作失敗：" + error.message);
-      }
-    }
-  };
-  // ▲▲▲ 替換結束 ▲▲▲
   const quotes = [
     '我不是在追求完美，我是在學著對自己更溫柔、更持續。',
     '即使進度很慢，我也在扎實地向更健康的自己靠近。',
@@ -233,29 +186,19 @@ export default function App() {
   >(null);
 
   // --- Auth & Load ---
-  // --- Auth & Load (修正版：自動記住登入狀態) ---
   useEffect(() => {
-    // 監聽登入狀態改變 (這個函式會在網頁載入時自動檢查是否有舊紀錄)
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      
-      if (currentUser) {
-        // 情況 1：發現舊帳號 (不管是 Google 還是訪客)
-        // 直接使用這個帳號，不需要重新登入
-        console.log("歡迎回來:", currentUser.uid);
-        setUser(currentUser);
-        setLoading(false);
-      } else {
-        // 情況 2：真的沒有人登入 (完全的新訪客)
-        // 這時候才去建立一個新的訪客帳號
-        console.log("建立新訪客...");
-        signInAnonymously(auth)
-          .catch((err) => console.error("Login Error:", err));
-          // 注意：signInAnonymously 成功後，會再次觸發上面的情況 1，所以不用在這裡 setUser
+    const initAuth = async () => {
+      try {
+        await signInAnonymously(auth);
+      } catch (e) {
+        console.error('Auth Error', e);
       }
+    };
+    initAuth();
+    onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setLoading(false);
     });
-
-    // 清理函式
-    return () => unsubscribe();
   }, []);
 
   // --- Realtime Listeners ---
@@ -381,21 +324,6 @@ export default function App() {
     .filter((l) => l.category === 'poop')
     .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
   const lastPoop = poops[0];
-  // ▼▼▼ 加入這段計算天數的程式碼 ▼▼▼
-  const daysSincePoop = useMemo(() => {
-    if (!lastPoop) return -1;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // 設定今天的時間為 00:00:00
-    
-    // 將 YYYY-MM-DD 拆解，確保用當地時間計算，避免時區誤差
-    const [y, m, d] = lastPoop.date.split('-').map(Number);
-    const last = new Date(y, m - 1, d);
-    
-    const diffTime = today.getTime() - last.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  }, [lastPoop]);
-  // ▲▲▲ 加入結束 ▲▲▲
 
   const chartData = useMemo(() => {
     return [...bodyRecords]
@@ -423,7 +351,6 @@ export default function App() {
       {/* 背景漸層保持不變 */}
       <div className="fixed top-0 left-0 w-full h-64 bg-gradient-to-br from-indigo-50 via-purple-50 to-white -z-10" />
 
-      {/* ▼▼▼ 請用這段完整的 Header 覆蓋原本的 Header ▼▼▼ */}
       <header className="pt-8 pb-6 px-6">
         <div className="max-w-md mx-auto flex justify-between items-end">
           <div>
@@ -434,34 +361,11 @@ export default function App() {
               健康日記<span className="text-indigo-600">.</span>
             </h1>
           </div>
-          
-          {/* 右上角綁定按鈕 */}
-          <button
-            onClick={user?.isAnonymous ? handleLinkGoogle : undefined}
-            className={`h-10 w-10 rounded-full shadow-md flex items-center justify-center border transition-all ${
-              user?.isAnonymous
-                ? 'bg-white border-indigo-50 cursor-pointer hover:bg-indigo-50'
-                : 'bg-indigo-600 border-indigo-600'
-            }`}
-            title={user?.isAnonymous ? "點擊綁定 Google 帳號以保存資料" : "帳號已保護"}
-          >
-            {user?.photoURL ? (
-              <img
-                src={user.photoURL}
-                alt="User"
-                className="h-full w-full rounded-full object-cover"
-              />
-            ) : (
-              <Activity
-                className={`h-5 w-5 ${
-                  user?.isAnonymous ? 'text-indigo-600' : 'text-white'
-                }`}
-              />
-            )}
-          </button>
+          <div className="h-10 w-10 rounded-full bg-white shadow-md flex items-center justify-center border border-indigo-50">
+            <Activity className="h-5 w-5 text-indigo-600" />
+          </div>
         </div>
       </header>
-      {/* ▲▲▲ 覆蓋結束 ▲▲▲ */}
 
       <div className="px-6 mb-6 sticky top-2 z-30">
         <div className="max-w-md mx-auto bg-white/80 backdrop-blur-md p-1.5 rounded-2xl shadow-lg shadow-slate-200/50 border border-white/50 flex">
@@ -475,7 +379,6 @@ export default function App() {
             label="日常"
             onClick={() => setActiveTab('daily')}
           />
-          
           <TabButton
             active={activeTab === 'injections'}
             label="注射"
@@ -532,15 +435,11 @@ export default function App() {
               </Card>
             </div>
 
-            {/* ▼▼▼ 請替換整個「今日概況」的 Card ▼▼▼ */}
             <Card className="p-5">
               <h3 className="font-bold text-slate-700 mb-4">
                 今日概況 ({selectedDate.slice(5)})
               </h3>
-              {/* 改成 grid-cols-2 讓四個格子變兩排，比較整齊 */}
-              <div className="grid grid-cols-2 gap-3 text-center">
-                
-                {/* 1. 水分 (藍色) */}
+              <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="bg-blue-50 rounded-xl p-3">
                   <Droplet className="h-5 w-5 text-blue-500 mx-auto mb-1" />
                   <span className="text-sm font-bold text-slate-700">
@@ -550,8 +449,6 @@ export default function App() {
                     ml 水分
                   </span>
                 </div>
-
-                {/* 2. 餐食 (橘色) */}
                 <div className="bg-orange-50 rounded-xl p-3">
                   <Utensils className="h-5 w-5 text-orange-500 mx-auto mb-1" />
                   <span className="text-sm font-bold text-slate-700">
@@ -561,8 +458,6 @@ export default function App() {
                     餐記錄
                   </span>
                 </div>
-
-                {/* 3. 排便 (綠色 - 依狀態變色) */}
                 <div
                   className={`rounded-xl p-3 ${
                     lastPoop?.date === selectedDate
@@ -588,177 +483,92 @@ export default function App() {
                   </span>
                   <span className="text-[10px] text-slate-400 block">排便</span>
                 </div>
-
-                {/* 4. 新增：嘴饞 (粉色) */}
-                <div className="bg-pink-50 rounded-xl p-3">
-                  <Cookie className="h-5 w-5 text-pink-500 mx-auto mb-1" />
-                  <span className="text-sm font-bold text-slate-700">
-                    {todaysLogs.filter(l => l.category === 'craving').length}
-                  </span>
-                  <span className="text-[10px] text-slate-400 block">
-                    嘴饞次數
-                  </span>
-                </div>
-
               </div>
             </Card>
-            {/* ▲▲▲ 替換結束 ▲▲▲ */}
 
             {/* 修正 3 (選用): 如果希望總覽頁面的圖表能填滿下方剩餘空間，
                 可以將 h-64 改為 flex-1 min-h-[250px]，並確保父層也有 flex 設定。
                 目前暫時保持 h-64 避免圖表變形。
             */}
-{/* ▼▼▼ 請替換整個體重趨勢的 Card ▼▼▼ */}
-<Card className="p-5 pb-0 h-64">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-xs font-bold text-slate-400 uppercase">
-                  體重 & 體脂趨勢
-                </p>
-                {/* 簡單的圖例說明 */}
-                <div className="flex gap-3 text-[10px] font-bold">
-                  <div className="flex items-center gap-1 text-indigo-600">
-                    <div className="w-2 h-2 rounded-full bg-indigo-600"></div>
-                    體重
-                  </div>
-                  <div className="flex items-center gap-1 text-teal-500">
-                    <div className="w-2 h-2 rounded-full bg-teal-500"></div>
-                    體脂
-                  </div>
-                </div>
-              </div>
-
+            <Card className="p-5 pb-0 h-64">
+              <p className="text-xs font-bold text-slate-400 uppercase mb-4">
+                體重趨勢
+              </p>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
-                    {/* 體重的漸層 (紫色) */}
-                    <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="cw" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                     </linearGradient>
-                    {/* 體脂的漸層 (青色) */}
-                    <linearGradient id="colorFat" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
-                    </linearGradient>
                   </defs>
-                  
                   <CartesianGrid
                     strokeDasharray="3 3"
                     vertical={false}
                     stroke="#f1f5f9"
                   />
-                  
                   <XAxis
                     dataKey="displayDate"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 10, fill: '#94a3b8' }}
+                    tick={{ fontSize: 10 }}
                     dy={10}
                   />
-                  
-                  {/* 左側Y軸：給體重用的 */}
                   <YAxis
-                    yAxisId="left"
                     domain={['auto', 'auto']}
-                    hide={true} 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10 }}
                   />
-                  
-                  {/* 右側Y軸：給體脂用的 (隱藏顯示但負責比例) */}
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    domain={['auto', 'auto']}
-                    hide={true}
-                  />
-
                   <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                    labelStyle={{ marginBottom: '8px', color: '#64748b', fontSize: '12px' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none' }}
                   />
-
-                  {/* 體重曲線 */}
                   <Area
-                    yAxisId="left"
                     type="monotone"
                     dataKey="weight"
-                    name="體重"
-                    unit="kg"
                     stroke="#6366f1"
                     strokeWidth={3}
-                    fill="url(#colorWeight)"
-                  />
-
-                  {/* 體脂曲線 */}
-                  <Area
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="bodyFat"
-                    name="體脂"
-                    unit="%"
-                    stroke="#14b8a6"
-                    strokeWidth={3}
-                    fill="url(#colorFat)"
+                    fill="url(#cw)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
             </Card>
-            {/* ▲▲▲ 替換結束 ▲▲▲ */}
           </>
         )}
 
         {/* --- DAILY LIFE --- */}
         {activeTab === 'daily' && (
           <div className="space-y-6">
-            
-           {/* ... 上面是 activeTab === 'daily' && ( ... */}
-<div className="space-y-6">
-  {/* ▼▼▼ 日期選擇器 (手機版面修正) ▼▼▼ */}
-  <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-slate-100 gap-2">
-              {/* 左箭頭：加入 shrink-0 防止被壓扁 */}
+            {/* ... 日常頁面的內容保持不變 ... */}
+            {/* 為了節省篇幅，這裡省略中間內容，請保留您原本的程式碼 */}
+            {/* 這裡放入原本 daily 的所有內容 */}
+            <div className="flex items-center justify-between bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
               <button
                 onClick={() => {
                   const d = new Date(selectedDate);
                   d.setDate(d.getDate() - 1);
                   setSelectedDate(d.toISOString().split('T')[0]);
                 }}
-                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform shrink-0"
+                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg"
               >
                 ←
               </button>
-
-              {/* 中間：日期輸入框 (加入 flex-1 自動填滿空間) */}
-              <div className="relative flex-1">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500 pointer-events-none" />
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => {
-                    if (e.target.value) setSelectedDate(e.target.value);
-                  }}
-                  // 修改點：
-                  // 1. w-full: 寬度填滿
-                  // 2. text-sm: 手機上字體小一點
-                  // 3. pr-2: 右邊留白改小 (原本是 pr-4)
-                  className="w-full bg-slate-50 text-slate-700 font-bold text-sm py-2 pl-10 pr-2 rounded-xl border border-slate-100 outline-none focus:ring-2 focus:ring-indigo-200 cursor-pointer appearance-none"
-                />
+              <div className="font-bold text-slate-700 flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-indigo-500" /> {selectedDate}
               </div>
-
-              {/* 右箭頭：加入 shrink-0 防止被壓扁 */}
               <button
                 onClick={() => {
                   const d = new Date(selectedDate);
                   d.setDate(d.getDate() + 1);
                   setSelectedDate(d.toISOString().split('T')[0]);
                 }}
-                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform shrink-0"
+                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg"
               >
                 →
               </button>
             </div>
-            {/* ▲▲▲ 修正結束 ▲▲▲ */}
 
-            {/* ▼▼▼ 今日飲水卡片 (版面修正) ▼▼▼ */}
+            {/* ▼▼▼ 今日飲水卡片 (按鈕修復版) ▼▼▼ */}
             <Card className="p-5 bg-gradient-to-br from-blue-500 to-blue-400 text-white">
               <div className="flex justify-between items-center mb-5">
                 {/* 左側：標題與總量 */}
@@ -767,19 +577,16 @@ export default function App() {
                     <Droplet className="h-5 w-5" /> 今日飲水
                   </h3>
                   <div className="flex items-baseline gap-1">
-                    {/* 修改點：改用 text-5xl 並加上 leading-none 解決被切到的問題 */}
                     <div className="text-5xl sm:text-6xl font-extrabold leading-none">
                       {waterTotal}
                     </div>
                     <span className="text-xl font-bold text-blue-100">ml</span>
                   </div>
-                  <div className="text-sm text-blue-100 mt-1">
-                    目標: {user?.dailyWaterGoal || 2000}ml
-                  </div>
+                  {/* 如果 user 變數裡沒有 goal，就預設 2000 */}
+                  <div className="text-sm text-blue-100 mt-1">目標: 2000ml</div>
                 </div>
 
                 {/* 右側：水瓶設定盒子 */}
-                {/* 修改點：加入 shrink-0 防止被壓扁，ml-4 增加左邊間距 */}
                 <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm ml-4 shrink-0 text-center">
                   <label className="block text-xs font-bold mb-1 text-blue-100">
                     水瓶設定
@@ -788,17 +595,21 @@ export default function App() {
                     <input
                       type="number"
                       value={waterBottleSize}
-                      onChange={(e) => setWaterBottleSize(Number(e.target.value))}
+                      onChange={(e) =>
+                        setWaterBottleSize(Number(e.target.value))
+                      }
                       className="w-16 bg-transparent text-center text-xl font-bold outline-none border-b-2 border-blue-100/30 focus:border-blue-100 py-0 text-white"
                     />
                   </div>
                 </div>
               </div>
-              
-              {/* 加水按鈕區域 (保持不變，但優化了一點樣式) */}
+
+              {/* 按鈕區域：這裡修正了 onClick 事件 */}
               <div className="grid grid-cols-3 gap-3">
                 <button
-                  onClick={() => addWater(waterBottleSize)}
+                  onClick={() =>
+                    addDailyLog('water', null, waterBottleSize, null)
+                  }
                   className="bg-white/20 hover:bg-white/30 text-white font-bold py-3 rounded-xl flex flex-col items-center transition-all active:scale-95 col-span-2 border border-white/10"
                 >
                   <span className="text-sm text-blue-100">加入一杯</span>
@@ -807,7 +618,8 @@ export default function App() {
                 <button
                   onClick={() => {
                     const custom = prompt('輸入水量 (ml):');
-                    if (custom) addWater(Number(custom));
+                    if (custom)
+                      addDailyLog('water', null, Number(custom), null);
                   }}
                   className="bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl flex flex-col items-center justify-center transition-all active:scale-95 border border-white/10"
                 >
@@ -815,6 +627,24 @@ export default function App() {
                   <span className="text-sm text-blue-100">自訂</span>
                 </button>
               </div>
+
+              {/* 顯示今日已記錄的水分列表 (方便刪除) */}
+              {todaysLogs.filter((l) => l.category === 'water').length > 0 && (
+                <div className="mt-4 pt-4 border-t border-white/20 flex flex-wrap gap-2">
+                  {todaysLogs
+                    .filter((l) => l.category === 'water')
+                    .map((log) => (
+                      <button
+                        key={log.id}
+                        onClick={() => deleteItem('daily_logs', log.id)}
+                        className="bg-white/20 hover:bg-red-500/50 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 transition-colors"
+                        title="點擊刪除"
+                      >
+                        {log.value}ml <span className="opacity-60">×</span>
+                      </button>
+                    ))}
+                </div>
+              )}
             </Card>
             {/* ▲▲▲ 修正結束 ▲▲▲ */}
 
@@ -932,19 +762,9 @@ export default function App() {
                     <CheckCircle2 className="h-6 w-6" />
                   </div>
                   <h4 className="font-bold text-slate-700 mb-1">排便記錄</h4>
-                  {/* ▼▼▼ 替換成這段顯示天數的程式碼 ▼▼▼ */}
-                  <p className={`text-xs font-bold mb-4 ${
-                    daysSincePoop > 2 ? 'text-orange-400' : 'text-slate-400'
-                  }`}>
-                    {daysSincePoop === -1 
-                      ? '尚無紀錄' 
-                      : daysSincePoop === 0 
-                      ? '就是今天' 
-                      : daysSincePoop === 1 
-                      ? '昨天' 
-                      : `距離上次 ${daysSincePoop} 天`}
+                  <p className="text-xs text-slate-400 mb-4">
+                    上次: {lastPoop ? lastPoop.date.slice(5) : '無'}
                   </p>
-                  {/* ▲▲▲ 替換結束 ▲▲▲ */}
                   <button
                     onClick={() => addDailyLog('poop', null, null, '排便打卡')}
                     className="w-full py-2 bg-green-100 text-green-700 rounded-xl font-bold text-sm hover:bg-green-200"
@@ -1005,78 +825,11 @@ export default function App() {
               </div>
             </div>
           </div>
-          </div>
         )}
 
-{/* --- INJECTIONS --- */}
-{activeTab === 'injections' && (
+        {/* --- INJECTIONS --- */}
+        {activeTab === 'injections' && (
           <div className="space-y-4 animate-fade-in">
-            
-            {/* 月曆圖表 */}
-            <Card className="p-5">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-indigo-500" /> 
-                  本月記錄 ({new Date().getMonth() + 1}月)
-                </h3>
-                <div className="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
-                  ● 紫色圓點為注射日
-                </div>
-              </div>
-
-              <div className="grid grid-cols-7 gap-1 text-center mb-2">
-                {['日', '一', '二', '三', '四', '五', '六'].map((d) => (
-                  <div key={d} className="text-xs text-slate-400 font-medium py-1">
-                    {d}
-                  </div>
-                ))}
-              </div>
-              
-              <div className="grid grid-cols-7 gap-1">
-                {(() => {
-                  const today = new Date();
-                  const year = today.getFullYear();
-                  const month = today.getMonth();
-                  const daysInMonth = new Date(year, month + 1, 0).getDate();
-                  const firstDayOfMonth = new Date(year, month, 1).getDay();
-
-                  const days = [];
-                  for (let i = 0; i < firstDayOfMonth; i++) {
-                    days.push(<div key={`empty-${i}`} />);
-                  }
-
-                  for (let d = 1; d <= daysInMonth; d++) {
-                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                    const record = injections.find((i) => i.date === dateStr);
-                    const isToday = dateStr === new Date().toISOString().split('T')[0];
-
-                    days.push(
-                      <div
-                        key={d}
-                        className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs relative border 
-                          ${
-                            record
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200'
-                              : isToday
-                              ? 'bg-white border-indigo-200 text-indigo-600 font-bold'
-                              : 'bg-slate-50/50 text-slate-400 border-transparent'
-                          }`}
-                      >
-                        <span className="z-10">{d}</span>
-                        {record && (
-                          <span className="absolute -bottom-1.5 bg-white text-indigo-600 text-[8px] px-1 rounded-full font-bold shadow-sm border border-indigo-100 scale-90">
-                            {record.dosage}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  }
-                  return days;
-                })()}
-              </div>
-            </Card>
-
-            {/* 新增注射卡片 */}
             <Card className="p-5">
               <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
                 <Plus className="h-4 w-4" /> 新增注射
@@ -1127,8 +880,6 @@ export default function App() {
                 <PrimaryButton onClick={addInjection} label="儲存" />
               </div>
             </Card>
-
-            {/* 歷史列表 */}
             <div className="space-y-3">
               {injections.map((i) => (
                 <Card
