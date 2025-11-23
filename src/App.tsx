@@ -583,7 +583,9 @@ export default function App() {
                     <span className="text-xl font-bold text-blue-100">ml</span>
                   </div>
                   {/* 如果 user 變數裡沒有 goal，就預設 2000 */}
-                  <div className="text-sm text-blue-100 mt-1">目標: 2000ml</div>
+                  <div className="text-sm text-blue-100 mt-1">
+                    目標: 2000ml
+                  </div>
                 </div>
 
                 {/* 右側：水瓶設定盒子 */}
@@ -595,21 +597,17 @@ export default function App() {
                     <input
                       type="number"
                       value={waterBottleSize}
-                      onChange={(e) =>
-                        setWaterBottleSize(Number(e.target.value))
-                      }
+                      onChange={(e) => setWaterBottleSize(Number(e.target.value))}
                       className="w-16 bg-transparent text-center text-xl font-bold outline-none border-b-2 border-blue-100/30 focus:border-blue-100 py-0 text-white"
                     />
                   </div>
                 </div>
               </div>
-
+              
               {/* 按鈕區域：這裡修正了 onClick 事件 */}
               <div className="grid grid-cols-3 gap-3">
                 <button
-                  onClick={() =>
-                    addDailyLog('water', null, waterBottleSize, null)
-                  }
+                  onClick={() => addDailyLog('water', null, waterBottleSize, null)} 
                   className="bg-white/20 hover:bg-white/30 text-white font-bold py-3 rounded-xl flex flex-col items-center transition-all active:scale-95 col-span-2 border border-white/10"
                 >
                   <span className="text-sm text-blue-100">加入一杯</span>
@@ -618,8 +616,7 @@ export default function App() {
                 <button
                   onClick={() => {
                     const custom = prompt('輸入水量 (ml):');
-                    if (custom)
-                      addDailyLog('water', null, Number(custom), null);
+                    if (custom) addDailyLog('water', null, Number(custom), null);
                   }}
                   className="bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl flex flex-col items-center justify-center transition-all active:scale-95 border border-white/10"
                 >
