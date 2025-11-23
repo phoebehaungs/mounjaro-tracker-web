@@ -172,17 +172,18 @@ export default function App() {
 
   // 語錄
   const quotes = [
-    "這一次，是為了自己而努力。",
-    "慢慢來，比較快。",
-    "擁抱情緒，然後輕輕放下。",
-    "你的價值不由數字定義。",
-    "今天的努力，身體都知道。",
-    "專注當下，不回頭看。",
-    "善待自己，身心都會回應你。",
-    "每一個小進步，都值得慶祝。",
-    "不完美的自己，也值得被愛。",
+    "我不是在追求完美，我是在學著對自己更溫柔、更持續。",
+    "即使進度很慢，我也在扎實地向更健康的自己靠近。",
+    "壓力再高，我也值得擁有一個穩定、輕鬆的生活節奏。",
+    "每一次我願意為自己做一點小事，都是在奠定我未來的力量。",
+    "我正在把身體、心情與生活重新調成我想要的樣子。",
+    "情緒起伏不代表我失敗，它只是提醒我要更照顧自己。",
+    "我已經比昨天更懂得怎麼讓身體舒服、心更安穩。",
+    "我的努力不需要被看見才有價值——我自己知道。",
+    "我願意相信，持續照顧自己的我，一定會慢慢瘦、慢慢更自在。",
     "原諒過去，擁抱現在。",
-    "餓了就吃，飽了就停，相信身體。",
+    "不急，我走得慢也沒關係，我會一直走下去，而這就值得驕傲。",
+    "我不需要急著瘦下來，我只要每天微微前進一點點，身體就會慢慢回到我值得擁有的樣子。",
   ];
 
   const randomQuote = useMemo(() => {
@@ -759,32 +760,49 @@ export default function App() {
                   { id: 'dinner', label: '晚餐', icon: Moon },
                   { id: 'snack', label: '點心', icon: Cookie },
                 ].map((meal) => {
-                  const hasLog = todaysLogs.some(
+                  // 找出這個餐點類別的所有紀錄
+                  const mealLogs = todaysLogs.filter(
                     (l) => l.category === 'meal' && l.subType === meal.id
                   );
+                  const hasLog = mealLogs.length > 0;
+                  
                   return (
                     <button
                       key={meal.id}
                       onClick={() => setActiveMealType(meal.id as any)}
-                      className={`p-4 rounded-2xl border text-left transition-all ${
+                      className={`p-4 rounded-2xl border text-left transition-all min-h-[120px] flex flex-col ${
                         hasLog
                           ? 'bg-orange-50 border-orange-200 shadow-sm'
                           : 'bg-white border-slate-100 hover:border-orange-200'
                       }`}
                     >
-                      <div
-                        className={`mb-2 ${
-                          hasLog ? 'text-orange-600' : 'text-slate-300'
-                        }`}
-                      >
-                        <meal.icon className="h-6 w-6" />
+                      <div className="flex items-center gap-2 mb-2">
+                        <div
+                          className={`${
+                            hasLog ? 'text-orange-600' : 'text-slate-300'
+                          }`}
+                        >
+                          <meal.icon className="h-6 w-6" />
+                        </div>
+                        <div className="font-bold text-slate-700">
+                          {meal.label}
+                        </div>
                       </div>
-                      <div className="font-bold text-slate-700">
-                        {meal.label}
-                      </div>
-                      <div className="text-xs text-slate-400 mt-1">
-                        {hasLog ? '已記錄 (點擊新增)' : '尚未記錄'}
-                      </div>
+                      
+                      {/* 直接顯示吃過的食物內容，不再顯示「已記錄」 */}
+                      {hasLog ? (
+                         <div className="mt-auto space-y-1">
+                           {mealLogs.map(log => (
+                             <div key={log.id} className="text-sm font-medium text-slate-600 bg-white/60 px-2 py-1 rounded border border-orange-100/50 truncate">
+                               {log.content}
+                             </div>
+                           ))}
+                         </div>
+                      ) : (
+                        <div className="text-xs text-slate-400 mt-auto">
+                           尚未記錄
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -873,12 +891,23 @@ export default function App() {
                       ? '昨天' 
                       : `距離上次 ${daysSincePoop} 天`}
                   </p>
-                  <button
-                    onClick={() => addDailyLog('poop', null, null, '大號打卡')}
-                    className="w-full py-2 bg-green-100 text-green-700 rounded-xl font-bold text-sm hover:bg-green-200"
-                  >
-                    + 記錄一次
-                  </button>
+                  
+                  {(() => {
+                    const poopCount = todaysLogs.filter(l => l.category === 'poop').length;
+                    return (
+                      <button
+                        onClick={() => addDailyLog('poop', null, null, '大號打卡')}
+                        className={`w-full py-2 rounded-xl font-bold text-sm transition-all ${
+                          poopCount > 0 
+                            ? 'bg-green-600 text-white shadow-md shadow-green-200' 
+                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                        }`}
+                      >
+                        {poopCount > 0 ? `今日累積 ${poopCount} 次` : '+ 記錄一次'}
+                      </button>
+                    );
+                  })()}
+
                   <div className="mt-3 w-full text-left space-y-1">
                     {todaysLogs
                       .filter((l) => l.category === 'poop')
@@ -904,14 +933,23 @@ export default function App() {
                   </div>
                   <h4 className="font-bold text-slate-700 mb-1">嘴饞記錄</h4>
                   <p className="text-xs text-slate-400 mb-4">想吃但不餓？</p>
-                  <button
-                    onClick={() =>
-                      addDailyLog('craving', null, null, '嘴饞記錄')
-                    }
-                    className="w-full py-2 bg-pink-100 text-pink-600 rounded-xl font-bold text-sm hover:bg-pink-200"
-                  >
-                    + 記錄一次
-                  </button>
+                  
+                  {(() => {
+                    const cravingCount = todaysLogs.filter(l => l.category === 'craving').length;
+                    return (
+                      <button
+                        onClick={() => addDailyLog('craving', null, null, '嘴饞記錄')}
+                        className={`w-full py-2 rounded-xl font-bold text-sm transition-all ${
+                          cravingCount > 0 
+                            ? 'bg-pink-500 text-white shadow-md shadow-pink-200' 
+                            : 'bg-pink-100 text-pink-600 hover:bg-pink-200'
+                        }`}
+                      >
+                        {cravingCount > 0 ? `今日累積 ${cravingCount} 次` : '+ 記錄一次'}
+                      </button>
+                    );
+                  })()}
+
                   <div className="mt-3 w-full text-left space-y-1">
                     {todaysLogs
                       .filter((l) => l.category === 'craving')
