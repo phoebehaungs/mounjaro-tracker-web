@@ -568,82 +568,68 @@ export default function App() {
               </button>
             </div>
 
-            {/* ▼▼▼ 今日飲水卡片 (按鈕修復版) ▼▼▼ */}
-            <Card className="p-5 bg-gradient-to-br from-blue-500 to-blue-400 text-white">
-              <div className="flex justify-between items-center mb-5">
-                {/* 左側：標題與總量 */}
-                <div>
-                  <h3 className="font-bold flex items-center gap-2 mb-2 text-blue-50">
-                    <Droplet className="h-5 w-5" /> 今日飲水
-                  </h3>
-                  <div className="flex items-baseline gap-1">
-                    <div className="text-5xl sm:text-6xl font-extrabold leading-none">
-                      {waterTotal}
+            <Card className="p-5 bg-gradient-to-br from-blue-500 to-cyan-400 text-white border-none relative overflow-hidden">
+              <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/20 rounded-full blur-2xl" />
+              <div className="relative z-10">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="font-bold text-blue-50 flex items-center gap-2">
+                      <Droplet className="h-5 w-5" /> 今日飲水
+                    </h3>
+                    <div className="text-4xl font-extrabold mt-2">
+                      {waterTotal}{' '}
+                      <span className="text-lg font-normal opacity-80">ml</span>
                     </div>
-                    <span className="text-xl font-bold text-blue-100">ml</span>
                   </div>
-                  {/* 如果 user 變數裡沒有 goal，就預設 2000 */}
-                  <div className="text-sm text-blue-100 mt-1">
-                    目標: 2000ml
-                  </div>
-                </div>
-
-                {/* 右側：水瓶設定盒子 */}
-                <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm ml-4 shrink-0 text-center">
-                  <label className="block text-xs font-bold mb-1 text-blue-100">
-                    水瓶設定
-                  </label>
-                  <div className="flex items-center justify-center">
+                  <div className="bg-white/20 backdrop-blur-sm rounded-xl p-2 text-center min-w-[80px]">
+                    <div className="text-[10px] font-bold uppercase opacity-70 mb-1">
+                      水瓶設定
+                    </div>
                     <input
                       type="number"
                       value={waterBottleSize}
-                      onChange={(e) => setWaterBottleSize(Number(e.target.value))}
-                      className="w-16 bg-transparent text-center text-xl font-bold outline-none border-b-2 border-blue-100/30 focus:border-blue-100 py-0 text-white"
+                      onChange={(e) =>
+                        setWaterBottleSize(Number(e.target.value))
+                      }
+                      className="w-full bg-transparent text-center font-bold text-white border-b border-white/30 focus:outline-none focus:border-white text-lg"
                     />
                   </div>
                 </div>
-              </div>
-              
-              {/* 按鈕區域：這裡修正了 onClick 事件 */}
-              <div className="grid grid-cols-3 gap-3">
                 <button
-                  onClick={() => addDailyLog('water', null, waterBottleSize, null)} 
-                  className="bg-white/20 hover:bg-white/30 text-white font-bold py-3 rounded-xl flex flex-col items-center transition-all active:scale-95 col-span-2 border border-white/10"
+                  onClick={() =>
+                    addDailyLog('water', null, waterBottleSize, null)
+                  }
+                  className="w-full bg-white text-blue-600 py-3 rounded-xl font-bold shadow-lg active:scale-[0.98] transition-transform flex justify-center items-center gap-2"
                 >
-                  <span className="text-sm text-blue-100">加入一杯</span>
-                  <span className="text-xl">+{waterBottleSize}ml</span>
+                  <Plus className="h-5 w-5" /> 喝了一瓶 ({waterBottleSize}ml)
                 </button>
-                <button
-                  onClick={() => {
-                    const custom = prompt('輸入水量 (ml):');
-                    if (custom) addDailyLog('water', null, Number(custom), null);
-                  }}
-                  className="bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl flex flex-col items-center justify-center transition-all active:scale-95 border border-white/10"
-                >
-                  <Plus className="h-6 w-6 mb-1" />
-                  <span className="text-sm text-blue-100">自訂</span>
-                </button>
-              </div>
 
-              {/* 顯示今日已記錄的水分列表 (方便刪除) */}
-              {todaysLogs.filter((l) => l.category === 'water').length > 0 && (
-                <div className="mt-4 pt-4 border-t border-white/20 flex flex-wrap gap-2">
-                  {todaysLogs
-                    .filter((l) => l.category === 'water')
-                    .map((log) => (
-                      <button
-                        key={log.id}
-                        onClick={() => deleteItem('daily_logs', log.id)}
-                        className="bg-white/20 hover:bg-red-500/50 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 transition-colors"
-                        title="點擊刪除"
-                      >
-                        {log.value}ml <span className="opacity-60">×</span>
-                      </button>
-                    ))}
-                </div>
-              )}
+                {todaysLogs.filter((l) => l.category === 'water').length >
+                  0 && (
+                  <div className="mt-4 pt-4 border-t border-white/20 space-y-2">
+                    <p className="text-xs font-bold text-blue-100">今日記錄</p>
+                    <div className="flex flex-wrap gap-2">
+                      {todaysLogs
+                        .filter((l) => l.category === 'water')
+                        .map((log) => (
+                          <div
+                            key={log.id}
+                            className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-2"
+                          >
+                            {log.value}ml
+                            <button
+                              onClick={() => deleteItem('daily_logs', log.id)}
+                              className="hover:text-red-200"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </Card>
-            {/* ▲▲▲ 修正結束 ▲▲▲ */}
 
             <div className="space-y-3">
               <h3 className="font-bold text-slate-700 flex items-center gap-2 pl-1">
