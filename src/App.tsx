@@ -26,6 +26,7 @@ import {
   Sun,
   ChefHat,
   Sparkles,
+  signInWithPopup,
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import {
@@ -137,23 +138,43 @@ const TabButton = ({ active, label, onClick }: any) => (
 export default function App() {
   const [user, setUser] = useState<any>(null);
   // ▼▼▼ 新增：綁定 Google 帳號的函式 ▼▼▼
+  // ▼▼▼ 請替換成這個聰明版的新函式 ▼▼▼
   const handleLinkGoogle = async () => {
-    if (!auth.currentUser) return;
+    // 建立 Google 提供者
     const provider = new GoogleAuthProvider();
+    
     try {
-      await linkWithPopup(auth.currentUser, provider);
-      alert("綁定成功！您的資料現在永久安全了 🎉");
-      // 這裡可以強制刷新一下 user 狀態
-      setUser({ ...auth.currentUser });
+      // 1. 先嘗試「綁定」：假設使用者是第一次想把資料存起來
+      if (auth.currentUser) {
+        await linkWithPopup(auth.currentUser, provider);
+        alert("綁定成功！您的資料現在永久安全了 🎉");
+      }
     } catch (error: any) {
-      console.error(error);
+      console.error("Binding Error:", error);
+      
+      // 2. 如果報錯說「credential-already-in-use」，代表這個 Google 帳號已經是舊用戶了
       if (error.code === 'auth/credential-already-in-use') {
-        alert("綁定失敗：這個 Google 帳號已經被註冊過了。請換一個帳號試試。");
+        // 詢問使用者是否要登入舊帳號
+        const wantToSwitch = window.confirm(
+          "這個 Google 帳號已經有儲存的舊資料了。\n\n要切換回舊帳號嗎？\n(注意：目前這個新開的暫存記錄將會消失)"
+        );
+
+        if (wantToSwitch) {
+          try {
+            // 3. 執行「登入」：切換身分
+            await signInWithPopup(auth, provider);
+            // 登入成功後，頁面會自動重新整理載入舊資料
+          } catch (signInError) {
+            console.error("Sign In Error:", signInError);
+            alert("登入失敗，請稍後再試。");
+          }
+        }
       } else {
-        alert("綁定失敗，請稍後再試。");
+        alert("綁定失敗，請確認網路連線或稍後再試。");
       }
     }
   };
+  // ▲▲▲ 替換結束 ▲▲▲
   const quotes = [
     '我不是在追求完美，我是在學著對自己更溫柔、更持續。',
     '即使進度很慢，我也在扎實地向更健康的自己靠近。',
