@@ -700,7 +700,7 @@ export default function App() {
                     <span className="text-xl font-bold text-blue-100">ml</span>
                   </div>
                   <div className="text-sm text-blue-100 mt-1">
-                    目標: 2000ml
+                    目標: 3000ml
                   </div>
                 </div>
                 <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm ml-4 shrink-0 text-center">
