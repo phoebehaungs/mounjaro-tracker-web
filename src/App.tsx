@@ -26,6 +26,8 @@ import {
   Sun,
   ChefHat,
   Sparkles,
+  Crown, // 新增皇冠圖示
+  AlertTriangle, // 新增副作用圖示
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import {
@@ -71,6 +73,7 @@ interface InjectionRecord {
   dosage: string;
   site: string;
   notes: string;
+  sideEffects?: string; // 新增副作用欄位
 }
 interface BodyRecord {
   id: string;
@@ -93,11 +96,14 @@ interface DailyLog {
 const Card = ({
   children,
   className = '',
+  onClick,
 }: {
   children: React.ReactNode;
   className?: string;
+  onClick?: () => void;
 }) => (
   <div
+    onClick={onClick}
     className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden ${className}`}
   >
     {children}
@@ -153,6 +159,7 @@ export default function App() {
   const [injDosage, setInjDosage] = useState('2.5');
   const [injSite, setInjSite] = useState('左上腹');
   const [injNotes, setInjNotes] = useState('');
+  const [injSideEffects, setInjSideEffects] = useState(''); // 新增副作用 State
   const [bodyDate, setBodyDate] = useState(
     new Date().toISOString().split('T')[0]
   );
@@ -170,19 +177,19 @@ export default function App() {
     'breakfast' | 'lunch' | 'dinner' | 'snack' | null
   >(null);
 
-  // 語錄 (已更新)
+  // 語錄
   const quotes = [
-    "我不是在追求完美，我是在學著對自己更溫柔、更持續。",
-    "即使進度很慢，我也在扎實地向更健康的自己靠近。",
-    "壓力再高，我也值得擁有一個穩定、輕鬆的生活節奏。",
-    "每一次我願意為自己做一點小事，都是在奠定我未來的力量。",
-    "我正在把身體、心情與生活重新調成我想要的樣子。",
-    "情緒起伏不代表我失敗，它只是提醒我要更照顧自己。",
-    "我已經比昨天更懂得怎麼讓身體舒服、心更安穩。",
-    "我的努力不需要被看見才有價值——我自己知道。",
-    "我願意相信，持續照顧自己的我，一定會慢慢瘦、慢慢更自在。",
-    "不急，我走得慢也沒關係，我會一直走下去，而這就值得驕傲。",
-    "我不需要急著瘦下來，我只要每天微微前進一點點，身體就會慢慢回到我值得擁有的樣子。",
+    "這一次，是為了自己而努力。",
+    "慢慢來，比較快。",
+    "擁抱情緒，然後輕輕放下。",
+    "你的價值不由數字定義。",
+    "今天的努力，身體都知道。",
+    "專注當下，不回頭看。",
+    "善待自己，身心都會回應你。",
+    "每一個小進步，都值得慶祝。",
+    "不完美的自己，也值得被愛。",
+    "原諒過去，擁抱現在。",
+    "餓了就吃，飽了就停，相信身體。",
   ];
 
   const randomQuote = useMemo(() => {
@@ -263,10 +270,12 @@ export default function App() {
         dosage: injDosage,
         site: injSite,
         notes: injNotes,
+        sideEffects: injSideEffects, // 儲存副作用
         createdAt: serverTimestamp(),
       }
     );
     setInjNotes('');
+    setInjSideEffects('');
     alert('注射記錄已儲存');
   };
 
@@ -475,9 +484,13 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <Card className="p-5">
-                <p className="text-slate-400 text-xs font-bold mb-1">
-                  目前體重
+              {/* 功能 1: 點擊「目前體重」跳轉至「體重頁籤」 */}
+              <Card 
+                className="p-5 cursor-pointer hover:shadow-md transition-transform active:scale-98 group"
+                onClick={() => setActiveTab('body')}
+              >
+                <p className="text-slate-400 text-xs font-bold mb-1 flex items-center gap-1">
+                  目前體重 <span className="text-slate-300 text-[10px] group-hover:text-indigo-400">↗</span>
                 </p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-bold text-slate-800">
@@ -499,12 +512,16 @@ export default function App() {
               </Card>
             </div>
 
+            {/* 功能 1: 點擊「今日概況」的項目跳轉至「日常頁籤」 */}
             <Card className="p-5">
               <h3 className="font-bold text-slate-700 mb-4">
                 今日概況 ({selectedDate.slice(5)})
               </h3>
               <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="bg-blue-50 rounded-xl p-3">
+                <div 
+                  onClick={() => setActiveTab('daily')}
+                  className="bg-blue-50 rounded-xl p-3 cursor-pointer hover:bg-blue-100 transition-colors active:scale-95"
+                >
                   <Droplet className="h-5 w-5 text-blue-500 mx-auto mb-1" />
                   <span className="text-sm font-bold text-slate-700">
                     {waterTotal}
@@ -513,7 +530,10 @@ export default function App() {
                     ml 水分
                   </span>
                 </div>
-                <div className="bg-orange-50 rounded-xl p-3">
+                <div 
+                  onClick={() => setActiveTab('daily')}
+                  className="bg-orange-50 rounded-xl p-3 cursor-pointer hover:bg-orange-100 transition-colors active:scale-95"
+                >
                   <Utensils className="h-5 w-5 text-orange-500 mx-auto mb-1" />
                   <span className="text-sm font-bold text-slate-700">
                     {meals.length}
@@ -523,15 +543,15 @@ export default function App() {
                   </span>
                 </div>
 
-                {/* 排便區塊：修正同步問題，檢查今天的 todaysLogs */}
                 {(() => {
                   const hasPoopToday = todaysLogs.some(l => l.category === 'poop');
                   return (
                     <div
-                      className={`rounded-xl p-3 ${
+                      onClick={() => setActiveTab('daily')}
+                      className={`rounded-xl p-3 cursor-pointer transition-colors active:scale-95 ${
                         hasPoopToday
-                          ? 'bg-green-50'
-                          : 'bg-slate-50'
+                          ? 'bg-green-50 hover:bg-green-100'
+                          : 'bg-slate-50 hover:bg-slate-100'
                       }`}
                     >
                       <CheckCircle2
@@ -555,7 +575,10 @@ export default function App() {
                   );
                 })()}
 
-                <div className="bg-pink-50 rounded-xl p-3">
+                <div 
+                  onClick={() => setActiveTab('daily')}
+                  className="bg-pink-50 rounded-xl p-3 cursor-pointer hover:bg-pink-100 transition-colors active:scale-95"
+                >
                   <Cookie className="h-5 w-5 text-pink-500 mx-auto mb-1" />
                   <span className="text-sm font-bold text-slate-700">
                     {todaysLogs.filter((l) => l.category === 'craving').length}
@@ -653,6 +676,75 @@ export default function App() {
         {/* --- DAILY LIFE --- */}
         {activeTab === 'daily' && (
           <div className="space-y-6">
+            
+            {/* 功能 2: 飲水達標日曆 (本月紀錄) */}
+            <Card className="p-5">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-blue-500" /> 
+                  飲水達標記錄 ({new Date().getMonth() + 1}月)
+                </h3>
+                <div className="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
+                  ≥ 3000ml
+                </div>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                {['日', '一', '二', '三', '四', '五', '六'].map((d) => (
+                  <div key={d} className="text-xs text-slate-400 font-medium py-1">
+                    {d}
+                  </div>
+                ))}
+              </div>
+              
+              <div className="grid grid-cols-7 gap-1">
+                {(() => {
+                  const today = new Date();
+                  const year = today.getFullYear();
+                  const month = today.getMonth();
+                  const daysInMonth = new Date(year, month + 1, 0).getDate();
+                  const firstDayOfMonth = new Date(year, month, 1).getDay();
+
+                  const days = [];
+                  for (let i = 0; i < firstDayOfMonth; i++) {
+                    days.push(<div key={`empty-${i}`} />);
+                  }
+
+                  for (let d = 1; d <= daysInMonth; d++) {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    
+                    // 計算該日飲水總量
+                    const dayWater = dailyLogs
+                      .filter(l => l.category === 'water' && l.date === dateStr)
+                      .reduce((acc, curr) => acc + (curr.value || 0), 0);
+                    
+                    const isAchieved = dayWater >= 3000; // 3000ml 達標線
+                    const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+                    days.push(
+                      <div
+                        key={d}
+                        className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs relative border 
+                          ${
+                            isAchieved
+                              ? 'bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-200'
+                              : isToday
+                              ? 'bg-white border-blue-200 text-blue-600 font-bold'
+                              : 'bg-slate-50/50 text-slate-400 border-transparent'
+                          }`}
+                      >
+                        <span className="z-10">{d}</span>
+                        {isAchieved && (
+                          <Crown className="absolute -top-2 -right-2 h-4 w-4 text-yellow-400 fill-yellow-400 drop-shadow-sm" />
+                        )}
+                      </div>
+                    );
+                  }
+                  return days;
+                })()}
+              </div>
+            </Card>
+
             <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-slate-100 gap-2">
               <button
                 onClick={() => {
@@ -1085,6 +1177,16 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+                
+                {/* 功能 3: 新增副作用輸入欄位 */}
+                <input
+                  type="text"
+                  value={injSideEffects}
+                  onChange={(e) => setInjSideEffects(e.target.value)}
+                  placeholder="副作用 (例如：噁心、頭暈...)"
+                  className="w-full bg-red-50 border border-red-100 p-3 rounded-xl text-sm text-red-700 placeholder:text-red-300"
+                />
+
                 <textarea
                   value={injNotes}
                   onChange={(e) => setInjNotes(e.target.value)}
@@ -1098,25 +1200,41 @@ export default function App() {
               {injections.map((i) => (
                 <Card
                   key={i.id}
-                  className="p-4 flex justify-between items-center"
+                  className="p-4 flex flex-col gap-2"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-indigo-100 text-indigo-600 p-2 rounded-lg">
-                      <Syringe className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-800">{i.date}</div>
-                      <div className="text-xs text-slate-500">
-                        {i.dosage}mg • {i.site}
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-indigo-100 text-indigo-600 p-2 rounded-lg">
+                        <Syringe className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-800">{i.date}</div>
+                        <div className="text-xs text-slate-500">
+                          {i.dosage}mg • {i.site}
+                        </div>
                       </div>
                     </div>
+                    <button
+                      onClick={() => deleteItem('injections', i.id)}
+                      className="text-slate-300 hover:text-red-400"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => deleteItem('injections', i.id)}
-                    className="text-slate-300 hover:text-red-400"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
+                  
+                  {/* 功能 3: 顯示副作用 (如果有填寫) */}
+                  {i.sideEffects && (
+                    <div className="bg-red-50 border border-red-100 rounded-lg p-2 text-xs text-red-700 flex items-start gap-2">
+                      <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                      <span>副作用：{i.sideEffects}</span>
+                    </div>
+                  )}
+                  
+                  {i.notes && (
+                    <div className="text-xs text-slate-500 pl-11">
+                      備註: {i.notes}
+                    </div>
+                  )}
                 </Card>
               ))}
             </div>
