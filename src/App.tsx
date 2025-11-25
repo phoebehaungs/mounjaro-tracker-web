@@ -29,6 +29,8 @@ import {
   Zap,
   TrendingDown,
   Star,
+  TrendingUp, // 新增圖示：體重上升
+  Minus,      // 新增圖示：體重持平
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import {
@@ -111,26 +113,14 @@ const Card = ({
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
-}) => {
-  // 基礎樣式
-  const baseClass = `bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative z-10 text-left ${className}`;
-  
-  // 如果有 onClick，渲染為 button 以優化手機觸控體驗
-  if (onClick) {
-    return (
-      <button
-        onClick={onClick}
-        className={`${baseClass} w-full hover:shadow-md transition-transform active:scale-[0.98] cursor-pointer`}
-        type="button"
-      >
-        {children}
-      </button>
-    );
-  }
-
-  // 否則渲染為普通 div
-  return <div className={baseClass}>{children}</div>;
-};
+}) => (
+  <div
+    onClick={onClick}
+    className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative z-10 ${className} ${onClick ? 'cursor-pointer hover:shadow-md transition-transform active:scale-[0.98]' : ''}`}
+  >
+    {children}
+  </div>
+);
 
 const PrimaryButton = ({
   onClick,
@@ -286,7 +276,7 @@ export default function App() {
     };
   }, [user]);
 
-  // --- Handlers: 智慧滑動切換邏輯 ---
+  // --- Handlers ---
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
     setTouchStart({
@@ -296,10 +286,7 @@ export default function App() {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd({
-      x: e.targetTouches[0].clientX,
-      y: e.targetTouches[0].clientY
-    });
+    setTouchEnd(e.targetTouches[0].clientX);
   };
 
   const handleTouchEnd = () => {
@@ -307,13 +294,9 @@ export default function App() {
     
     const distanceX = touchStart.x - touchEnd.x;
     const distanceY = touchStart.y - touchEnd.y;
-    const minSwipeDistance = 75; // 增加最小滑動距離，避免誤觸點擊
+    const minSwipeDistance = 75; 
 
-    // 【重要】防誤觸邏輯：
-    // 1. 如果水平移動小於 75px，視為點擊，不切換頁籤
     if (Math.abs(distanceX) < minSwipeDistance) return;
-
-    // 2. 如果垂直移動 > 水平移動，視為捲動，不切換頁籤
     if (Math.abs(distanceY) > Math.abs(distanceX)) return;
 
     const currentIndex = tabOrder.indexOf(activeTab as any);
@@ -440,13 +423,6 @@ export default function App() {
     .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
   const lastPoop = poops[0];
 
-  // 修正：排便天數改為計算「選定日期」當下的狀態
-  const lastPoopBeforeSelected = useMemo(() => {
-     return dailyLogs
-      .filter(l => l.category === 'poop' && l.date <= selectedDate)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-  }, [dailyLogs, selectedDate]);
-
   const daysSincePoop = useMemo(() => {
     if (!lastPoopBeforeSelected) return -1;
 
@@ -459,6 +435,13 @@ export default function App() {
     const diffTime = current.getTime() - last.getTime();
     return Math.floor(diffTime / (1000 * 60 * 60 * 24));
   }, [lastPoopBeforeSelected, selectedDate]);
+
+  // 修正排便天數邏輯
+  const lastPoopBeforeSelected = useMemo(() => {
+     return dailyLogs
+      .filter(l => l.category === 'poop' && l.date <= selectedDate)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  }, [dailyLogs, selectedDate]);
 
   const chartData = useMemo(() => {
     return [...bodyRecords]
@@ -574,7 +557,6 @@ export default function App() {
 
   return (
     <div 
-      // 加入滑動監聽
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -897,7 +879,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* 皇冠日曆卡片 (現在可以點擊切換了！) */}
+            {/* 皇冠日曆卡片 (加入點擊切換日期功能) */}
             <Card className="p-5">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-slate-700 flex items-center gap-2">
@@ -1470,46 +1452,66 @@ export default function App() {
               </div>
             </Card>
             <div className="space-y-3">
-              {bodyRecords.map((r) => (
-                <Card
-                  key={r.id}
-                  className="p-4 flex justify-between items-center"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-slate-100 p-2 rounded-lg min-w-[50px] text-center">
-                      <div className="text-xs font-bold text-slate-500">
-                        {r.date.slice(5)}
+              {bodyRecords.map((r, index) => {
+                // 計算體重差異
+                const prevRecord = bodyRecords[index + 1];
+                const diff = prevRecord ? (r.weight - prevRecord.weight) : 0;
+                const isGain = diff > 0;
+                const isLoss = diff < 0;
+                const diffText = prevRecord 
+                  ? `${diff > 0 ? '+' : ''}${diff.toFixed(1)}` 
+                  : null;
+
+                return (
+                  <Card key={r.id} className="p-4">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-slate-100 p-2 rounded-lg min-w-[50px] text-center">
+                          <div className="text-xs font-bold text-slate-500">
+                            {r.date.slice(5)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex items-baseline gap-2">
+                            <div className="font-extrabold text-slate-800 text-lg">
+                              {r.weight} <span className="text-sm font-normal text-slate-400">kg</span>
+                            </div>
+                            
+                            {/* 體重差異顯示 (綠色為瘦, 紅色為胖) */}
+                            {diffText && (
+                              <div className={`flex items-center text-xs font-bold px-1.5 py-0.5 rounded ${
+                                isLoss ? 'text-green-600 bg-green-50' : isGain ? 'text-red-500 bg-red-50' : 'text-slate-400 bg-slate-50'
+                              }`}>
+                                {isLoss ? <TrendingDown className="h-3 w-3 mr-0.5" /> : isGain ? <TrendingUp className="h-3 w-3 mr-0.5" /> : <Minus className="h-3 w-3 mr-0.5" />}
+                                {diffText}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex gap-2 text-[10px] mt-1">
+                            {r.bodyFat && (
+                              <span className="bg-teal-50 text-teal-600 px-1.5 py-0.5 rounded font-bold">
+                                體脂 {r.bodyFat}%
+                              </span>
+                            )}
+                            {r.muscleMass && (
+                              <span className="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-bold">
+                                肌肉 {r.muscleMass}kg
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
+                      <button
+                        onClick={() => deleteItem('measurements', r.id)}
+                        className="text-slate-300 hover:text-red-400"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
                     </div>
-                    <div>
-                      <div className="font-extrabold text-slate-800 text-lg">
-                        {r.weight}{' '}
-                        <span className="text-sm font-normal text-slate-400">
-                          kg
-                        </span>
-                      </div>
-                      <div className="flex gap-2 text-[10px]">
-                        {r.bodyFat && (
-                          <span className="bg-teal-50 text-teal-600 px-1.5 py-0.5 rounded font-bold">
-                            體脂 {r.bodyFat}%
-                          </span>
-                        )}
-                        {r.muscleMass && (
-                          <span className="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-bold">
-                            肌肉 {r.muscleMass}kg
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => deleteItem('measurements', r.id)}
-                    className="text-slate-300 hover:text-red-400"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           </div>
         )}
