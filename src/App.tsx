@@ -157,6 +157,12 @@ export default function App() {
   >('dashboard');
   const [loading, setLoading] = useState(true);
 
+  // 滑動手勢 State (改良版：同時記錄 X 和 Y)
+  const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{x: number, y: number} | null>(null);
+  
+  const tabOrder = ['dashboard', 'daily', 'injections', 'body', 'achievements'] as const;
+
   // Data
   const [injections, setInjections] = useState<InjectionRecord[]>([]);
   const [bodyRecords, setBodyRecords] = useState<BodyRecord[]>([]);
@@ -268,7 +274,45 @@ export default function App() {
     };
   }, [user]);
 
-  // --- Handlers ---
+  // --- Handlers: 智慧滑動切換 ---
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distanceX = touchStart.x - touchEnd.x;
+    const distanceY = touchStart.y - touchEnd.y;
+    const minSwipeDistance = 50; 
+
+    // 關鍵修正：如果垂直移動距離 > 水平移動距離，判定為「捲動」，不切換頁籤
+    if (Math.abs(distanceX) < Math.abs(distanceY)) return;
+
+    const currentIndex = tabOrder.indexOf(activeTab as any);
+
+    if (distanceX > minSwipeDistance) { // 左滑 -> 下一個
+      if (currentIndex < tabOrder.length - 1) {
+        setActiveTab(tabOrder[currentIndex + 1]);
+      }
+    } else if (distanceX < -minSwipeDistance) { // 右滑 -> 上一個
+      if (currentIndex > 0) {
+        setActiveTab(tabOrder[currentIndex - 1]);
+      }
+    }
+  };
+
   const addInjection = async () => {
     if (!user) return;
     await addDoc(
@@ -505,6 +549,9 @@ export default function App() {
 
   return (
     <div 
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       className="fixed inset-0 w-full h-full bg-[#F8FAFC] text-slate-800 font-sans flex flex-col overflow-y-auto overflow-x-hidden pb-24"
     >
       <div className="fixed top-0 left-0 w-full h-64 bg-gradient-to-br from-indigo-50 via-purple-50 to-white -z-10" />
