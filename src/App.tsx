@@ -115,7 +115,7 @@ const Card = ({
 }) => (
   <div
     onClick={onClick}
-    className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden ${className}`}
+    className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden ${className} ${onClick ? 'cursor-pointer hover:shadow-md transition-transform active:scale-[0.99]' : ''}`}
   >
     {children}
   </div>
@@ -140,7 +140,7 @@ const PrimaryButton = ({
 const TabButton = ({ active, label, onClick }: any) => (
   <button
     onClick={onClick}
-    className={`flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all duration-300 ${
+    className={`flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all duration-300 whitespace-nowrap ${
       active
         ? 'bg-slate-800 text-white shadow-md'
         : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
@@ -633,7 +633,7 @@ export default function App() {
 
             <div className="grid grid-cols-2 gap-4">
               <Card 
-                className="p-5 cursor-pointer hover:shadow-md transition-transform active:scale-98 group"
+                className="p-5 group"
                 onClick={() => setActiveTab('body')}
               >
                 <p className="text-slate-400 text-xs font-bold mb-1 flex items-center gap-1">
@@ -823,6 +823,41 @@ export default function App() {
         {activeTab === 'daily' && (
           <div className="space-y-6">
             
+            {/* 把日期選單移回最頂端！恢復使用者習慣 */}
+            <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-slate-100 gap-2">
+              <button
+                onClick={() => {
+                  const d = new Date(selectedDate);
+                  d.setDate(d.getDate() - 1);
+                  setSelectedDate(d.toISOString().split('T')[0]);
+                }}
+                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform shrink-0"
+              >
+                ←
+              </button>
+              <div className="relative flex-1">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500 pointer-events-none" />
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    if (e.target.value) setSelectedDate(e.target.value);
+                  }}
+                  className="w-full bg-slate-50 text-slate-700 font-bold text-sm py-2 pl-10 pr-2 rounded-xl border border-slate-100 outline-none focus:ring-2 focus:ring-indigo-200 cursor-pointer appearance-none"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  const d = new Date(selectedDate);
+                  d.setDate(d.getDate() + 1);
+                  setSelectedDate(d.toISOString().split('T')[0]);
+                }}
+                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform shrink-0"
+              >
+                →
+              </button>
+            </div>
+
             <Card className="p-5">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-slate-700 flex items-center gap-2">
@@ -887,40 +922,6 @@ export default function App() {
                 })()}
               </div>
             </Card>
-
-            <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-slate-100 gap-2">
-              <button
-                onClick={() => {
-                  const d = new Date(selectedDate);
-                  d.setDate(d.getDate() - 1);
-                  setSelectedDate(d.toISOString().split('T')[0]);
-                }}
-                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform shrink-0"
-              >
-                ←
-              </button>
-              <div className="relative flex-1">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500 pointer-events-none" />
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => {
-                    if (e.target.value) setSelectedDate(e.target.value);
-                  }}
-                  className="w-full bg-slate-50 text-slate-700 font-bold text-sm py-2 pl-10 pr-2 rounded-xl border border-slate-100 outline-none focus:ring-2 focus:ring-indigo-200 cursor-pointer appearance-none"
-                />
-              </div>
-              <button
-                onClick={() => {
-                  const d = new Date(selectedDate);
-                  d.setDate(d.getDate() + 1);
-                  setSelectedDate(d.toISOString().split('T')[0]);
-                }}
-                className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform shrink-0"
-              >
-                →
-              </button>
-            </div>
 
             <Card className="p-5 bg-gradient-to-br from-blue-500 to-blue-400 text-white">
               <div className="flex justify-between items-center mb-5">
