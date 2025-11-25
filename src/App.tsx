@@ -16,9 +16,6 @@ import {
   Trash2,
   Droplet,
   Calendar,
-  Dumbbell,
-  Percent,
-  AlertCircle,
   Utensils,
   Cookie,
   CheckCircle2,
@@ -29,7 +26,6 @@ import {
   Crown,
   AlertTriangle,
   Trophy,
-  Medal,
   Zap,
   TrendingDown,
   Star,
@@ -97,6 +93,7 @@ interface DailyLog {
   timestamp?: any;
 }
 
+// 成就項目的類型定義
 interface AchievementItem {
   date: string;
   type: 'injection' | 'water_goal' | 'water_streak' | 'weight_loss';
@@ -190,7 +187,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [waterBottleSize, setWaterBottleSize] = useState(1200);
+  const [waterBottleSize, setWaterBottleSize] = useState(1200); // 預設 1200ml
   const [mealContent, setMealContent] = useState('');
   const [activeMealType, setActiveMealType] = useState<
     'breakfast' | 'lunch' | 'dinner' | 'snack' | null
@@ -219,9 +216,11 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
+        console.log("歡迎回來:", currentUser.uid);
         setUser(currentUser);
         setLoading(false);
       } else {
+        console.log("建立新訪客...");
         signInAnonymously(auth).catch((err) => console.error("Login Error:", err));
       }
     });
@@ -437,8 +436,11 @@ export default function App() {
   const totalLoss =
     startWeight && latestWeight ? (startWeight - latestWeight).toFixed(1) : 0;
 
+  // --- Logic: Achievements Generation ---
   const achievements = useMemo(() => {
     const events: AchievementItem[] = [];
+
+    // 1. 注射成就
     const seenDosages = new Set<string>();
     const sortedInjections = [...injections].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
@@ -466,6 +468,7 @@ export default function App() {
       }
     });
 
+    // 2. 體重成就
     if (bodyRecords.length > 0) {
       const sortedBody = [...bodyRecords].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       const startW = sortedBody[0].weight;
@@ -490,6 +493,7 @@ export default function App() {
       });
     }
 
+    // 3. 飲水成就
     const waterByDate: Record<string, number> = {};
     dailyLogs.filter(l => l.category === 'water').forEach(l => {
       waterByDate[l.date] = (waterByDate[l.date] || 0) + (l.value || 0);
@@ -859,26 +863,18 @@ export default function App() {
                     
                     const isAchieved = dayWater >= 3000;
                     const isToday = dateStr === new Date().toISOString().split('T')[0];
-                    const isSelected = dateStr === selectedDate;
 
                     days.push(
                       <div
                         key={d}
-                        onClick={() => setSelectedDate(dateStr)}
-                        className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs relative border cursor-pointer transition-all active:scale-95
+                        className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs relative border 
                           ${
                             isAchieved
                               ? 'bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-200'
                               : isToday
                               ? 'bg-white border-blue-200 text-blue-600 font-bold'
-                              : 'bg-slate-50/50 text-slate-400 border-transparent hover:bg-slate-100'
-                          }
-                          ${
-                            isSelected 
-                              ? 'ring-2 ring-offset-2 ring-indigo-500' 
-                              : ''
-                          }
-                        `}
+                              : 'bg-slate-50/50 text-slate-400 border-transparent'
+                          }`}
                       >
                         <span className="z-10">{d}</span>
                         {isAchieved && (
@@ -1474,7 +1470,7 @@ export default function App() {
           </div>
         )}
 
-        {/* --- ACHIEVEMENTS --- */}
+        {/* --- ACHIEVEMENTS (新功能：成就時間軸) --- */}
         {activeTab === 'achievements' && (
           <div className="space-y-4 animate-fade-in">
             <div className="flex items-center gap-3 mb-2 px-2">
@@ -1487,14 +1483,17 @@ export default function App() {
               </div>
             </div>
 
+            {/* 時間軸容器 */}
             <div className="relative pl-4 space-y-6 before:content-[''] before:absolute before:left-[27px] before:top-2 before:bottom-0 before:w-0.5 before:bg-slate-100">
               {achievements.length > 0 ? (
                 achievements.map((event, index) => (
                   <div key={index} className="relative pl-10">
+                    {/* 時間軸上的圓點圖示 */}
                     <div className={`absolute left-0 top-0 w-14 h-14 rounded-full border-4 border-white shadow-md flex items-center justify-center z-10 ${event.color}`}>
                       <event.icon className="h-6 w-6" />
                     </div>
                     
+                    {/* 內容卡片 */}
                     <Card className="p-4 ml-2">
                       <div className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-2">
                         <Calendar className="h-3 w-3" />
@@ -1518,6 +1517,7 @@ export default function App() {
               )}
             </div>
             
+            {/* 底部激勵小語 */}
             <div className="text-center py-6 text-slate-300 text-xs italic">
               "每一步都算數，繼續加油！"
             </div>
