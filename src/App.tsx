@@ -157,12 +157,6 @@ export default function App() {
   >('dashboard');
   const [loading, setLoading] = useState(true);
 
-  // 滑動手勢 State (改良版：同時記錄 X 和 Y)
-  const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
-  const [touchEnd, setTouchEnd] = useState<{x: number, y: number} | null>(null);
-  
-  const tabOrder = ['dashboard', 'daily', 'injections', 'body', 'achievements'] as const;
-
   // Data
   const [injections, setInjections] = useState<InjectionRecord[]>([]);
   const [bodyRecords, setBodyRecords] = useState<BodyRecord[]>([]);
@@ -274,45 +268,7 @@ export default function App() {
     };
   }, [user]);
 
-  // --- Handlers: 智慧滑動切換 ---
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart({
-      x: e.targetTouches[0].clientX,
-      y: e.targetTouches[0].clientY
-    });
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd({
-      x: e.targetTouches[0].clientX,
-      y: e.targetTouches[0].clientY
-    });
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distanceX = touchStart.x - touchEnd.x;
-    const distanceY = touchStart.y - touchEnd.y;
-    const minSwipeDistance = 50; 
-
-    // 關鍵修正：如果垂直移動距離 > 水平移動距離，判定為「捲動」，不切換頁籤
-    if (Math.abs(distanceX) < Math.abs(distanceY)) return;
-
-    const currentIndex = tabOrder.indexOf(activeTab as any);
-
-    if (distanceX > minSwipeDistance) { // 左滑 -> 下一個
-      if (currentIndex < tabOrder.length - 1) {
-        setActiveTab(tabOrder[currentIndex + 1]);
-      }
-    } else if (distanceX < -minSwipeDistance) { // 右滑 -> 上一個
-      if (currentIndex > 0) {
-        setActiveTab(tabOrder[currentIndex - 1]);
-      }
-    }
-  };
-
+  // --- Handlers ---
   const addInjection = async () => {
     if (!user) return;
     await addDoc(
@@ -419,21 +375,28 @@ export default function App() {
     .filter((l) => l.category === 'water')
     .reduce((acc, curr) => acc + (curr.value || 0), 0);
   const meals = todaysLogs.filter((l) => l.category === 'meal');
-  const poops = dailyLogs
-    .filter((l) => l.category === 'poop')
-    .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-  const lastPoop = poops[0];
+  
+  // 修正 Bug：這裡的排便邏輯改為「找出選定日期(含)之前的最後一次排便」
+  // 這樣切換日曆時，才能顯示當時狀態，而不是永遠跟「今天」比
+  const lastPoopBeforeSelected = useMemo(() => {
+     return dailyLogs
+      .filter(l => l.category === 'poop' && l.date <= selectedDate)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  }, [dailyLogs, selectedDate]);
 
   const daysSincePoop = useMemo(() => {
-    if (!lastPoop) return -1;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const [y, m, d] = lastPoop.date.split('-').map(Number);
-    const last = new Date(y, m - 1, d);
-    const diffTime = today.getTime() - last.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  }, [lastPoop]);
+    if (!lastPoopBeforeSelected) return -1;
+
+    // 使用選定的日期當作基準點，而不是 new Date()
+    const [sY, sM, sD] = selectedDate.split('-').map(Number);
+    const current = new Date(sY, sM - 1, sD);
+
+    const [pY, pM, pD] = lastPoopBeforeSelected.date.split('-').map(Number);
+    const last = new Date(pY, pM - 1, pD);
+
+    const diffTime = current.getTime() - last.getTime();
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  }, [lastPoopBeforeSelected, selectedDate]);
 
   const chartData = useMemo(() => {
     return [...bodyRecords]
@@ -549,9 +512,6 @@ export default function App() {
 
   return (
     <div 
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       className="fixed inset-0 w-full h-full bg-[#F8FAFC] text-slate-800 font-sans flex flex-col overflow-y-auto overflow-x-hidden pb-24"
     >
       <div className="fixed top-0 left-0 w-full h-64 bg-gradient-to-br from-indigo-50 via-purple-50 to-white -z-10" />
