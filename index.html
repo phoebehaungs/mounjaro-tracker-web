@@ -1,10 +1,25 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-TW">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    
     <title>Mounjaro Life</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+      /* 額外優化：防止手機點擊時放大的效果，讓操作更像 App */
+      body {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
