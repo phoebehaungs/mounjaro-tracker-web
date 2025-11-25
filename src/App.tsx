@@ -28,6 +28,11 @@ import {
   Sparkles,
   Crown,
   AlertTriangle,
+  Trophy, // 新增：獎盃
+  Medal,  // 新增：獎牌
+  Zap,    // 新增：閃電 (連續紀錄)
+  TrendingDown, // 新增：體重下降
+  Star,   // 新增：星星
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import {
@@ -92,6 +97,16 @@ interface DailyLog {
   timestamp?: any;
 }
 
+// 成就項目的類型定義
+interface AchievementItem {
+  date: string;
+  type: 'injection' | 'water_goal' | 'water_streak' | 'weight_loss';
+  title: string;
+  description: string;
+  icon: any;
+  color: string;
+}
+
 // --- UI Components ---
 const Card = ({
   children,
@@ -129,7 +144,7 @@ const PrimaryButton = ({
 const TabButton = ({ active, label, onClick }: any) => (
   <button
     onClick={onClick}
-    className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${
+    className={`flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all duration-300 ${
       active
         ? 'bg-slate-800 text-white shadow-md'
         : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
@@ -143,16 +158,15 @@ const TabButton = ({ active, label, onClick }: any) => (
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'daily' | 'injections' | 'body'
+    'dashboard' | 'daily' | 'injections' | 'body' | 'achievements'
   >('dashboard');
   const [loading, setLoading] = useState(true);
 
-  // 滑動手勢相關 State
+  // 滑動手勢 State
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
-
-  // 定義頁籤順序
-  const tabOrder = ['dashboard', 'daily', 'injections', 'body'] as const;
+  // 更新 Tab 順序，加入 achievements
+  const tabOrder = ['dashboard', 'daily', 'injections', 'body', 'achievements'] as const;
 
   // Data
   const [injections, setInjections] = useState<InjectionRecord[]>([]);
@@ -178,7 +192,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [waterBottleSize, setWaterBottleSize] = useState(1200);
+  const [waterBottleSize, setWaterBottleSize] = useState(1200); // 預設 1200ml
   const [mealContent, setMealContent] = useState('');
   const [activeMealType, setActiveMealType] = useState<
     'breakfast' | 'lunch' | 'dinner' | 'snack' | null
@@ -268,8 +282,6 @@ export default function App() {
   }, [user]);
 
   // --- Handlers ---
-  
-  // 滑動處理函式
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
@@ -281,19 +293,15 @@ export default function App() {
 
   const handleTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
-    
     const distance = touchStart - touchEnd;
-    const minSwipeDistance = 50; // 最小滑動距離，避免誤觸
+    const minSwipeDistance = 50; 
     const currentIndex = tabOrder.indexOf(activeTab as any);
 
-    // 向左滑 (去下一個 Tab)
     if (distance > minSwipeDistance) {
       if (currentIndex < tabOrder.length - 1) {
         setActiveTab(tabOrder[currentIndex + 1]);
       }
-    }
-    // 向右滑 (去上一個 Tab)
-    else if (distance < -minSwipeDistance) {
+    } else if (distance < -minSwipeDistance) {
       if (currentIndex > 0) {
         setActiveTab(tabOrder[currentIndex - 1]);
       }
@@ -365,7 +373,6 @@ export default function App() {
     await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, coll, id));
   };
 
-  // --- Auth Handlers ---
   const handleLinkGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
@@ -434,6 +441,111 @@ export default function App() {
   const totalLoss =
     startWeight && latestWeight ? (startWeight - latestWeight).toFixed(1) : 0;
 
+  // --- Logic: Achievements Generation (新功能邏輯) ---
+  const achievements = useMemo(() => {
+    const events: AchievementItem[] = [];
+
+    // 1. 注射成就 (第一次打針, 劑量升級)
+    const seenDosages = new Set<string>();
+    // 必須先由舊到新排序來判斷「第一次」
+    const sortedInjections = [...injections].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    sortedInjections.forEach((inj, index) => {
+      if (index === 0) {
+        events.push({
+          date: inj.date,
+          type: 'injection',
+          title: '旅程的起點',
+          description: `第一次注射 Mounjaro ${inj.dosage}mg，美好的開始！`,
+          icon: Syringe,
+          color: 'text-purple-500 bg-purple-100',
+        });
+        seenDosages.add(inj.dosage);
+      } else if (!seenDosages.has(inj.dosage)) {
+        events.push({
+          date: inj.date,
+          type: 'injection',
+          title: '劑量升級',
+          description: `劑量調整為 ${inj.dosage}mg，持續前進。`,
+          icon: Activity,
+          color: 'text-purple-600 bg-purple-50',
+        });
+        seenDosages.add(inj.dosage);
+      }
+    });
+
+    // 2. 體重成就 (總減重里程碑 1kg, 2kg...)
+    if (bodyRecords.length > 0) {
+      // 從最舊的紀錄開始算
+      const sortedBody = [...bodyRecords].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const startW = sortedBody[0].weight;
+      let maxLossMilestone = 0;
+
+      sortedBody.forEach(record => {
+        const currentLoss = startW - record.weight;
+        // 檢查是否突破新的整數關卡 (例如突破 1kg, 2kg...)
+        if (currentLoss >= 1) {
+          const milestone = Math.floor(currentLoss);
+          if (milestone > maxLossMilestone) {
+            maxLossMilestone = milestone;
+            events.push({
+              date: record.date,
+              type: 'weight_loss',
+              title: `減重里程碑 -${milestone}kg`,
+              description: `太棒了！您已經總共減去了 ${milestone} 公斤！`,
+              icon: TrendingDown,
+              color: 'text-indigo-600 bg-indigo-100',
+            });
+          }
+        }
+      });
+    }
+
+    // 3. 飲水成就 (達標與連續達標)
+    // 先整理每天的喝水量
+    const waterByDate: Record<string, number> = {};
+    dailyLogs.filter(l => l.category === 'water').forEach(l => {
+      waterByDate[l.date] = (waterByDate[l.date] || 0) + (l.value || 0);
+    });
+
+    // 依日期排序檢查
+    const sortedDates = Object.keys(waterByDate).sort();
+    let streak = 0;
+
+    sortedDates.forEach(date => {
+      if (waterByDate[date] >= 3000) {
+        // 記錄達標
+        events.push({
+          date: date,
+          type: 'water_goal',
+          title: '飲水達標',
+          description: `今日喝水量達到 ${waterByDate[date]}ml，身體感謝您！`,
+          icon: Droplet,
+          color: 'text-blue-500 bg-blue-100',
+        });
+
+        // 計算連續天數
+        streak++;
+        if (streak === 3 || streak === 7 || streak === 14 || streak === 30) {
+          events.push({
+            date: date,
+            type: 'water_streak',
+            title: `連續 ${streak} 天喝水達標`,
+            description: `不可思議的毅力！保持水潤 ${streak} 天了！`,
+            icon: Zap,
+            color: 'text-orange-500 bg-orange-100',
+          });
+        }
+      } else {
+        streak = 0;
+      }
+    });
+
+    // 最後依日期「由新到舊」排序，讓最新的在最上面
+    return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [injections, bodyRecords, dailyLogs]);
+
+
   if (loading)
     return (
       <div className="flex h-screen items-center justify-center text-slate-400">
@@ -443,7 +555,6 @@ export default function App() {
 
   return (
     <div 
-      // 加入滑動監聽
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -488,7 +599,7 @@ export default function App() {
       </header>
 
       <div className="px-6 mb-6 sticky top-2 z-30">
-        <div className="max-w-md mx-auto bg-white/80 backdrop-blur-md p-1.5 rounded-2xl shadow-lg shadow-slate-200/50 border border-white/50 flex">
+        <div className="max-w-md mx-auto bg-white/80 backdrop-blur-md p-1.5 rounded-2xl shadow-lg shadow-slate-200/50 border border-white/50 flex overflow-x-auto">
           <TabButton
             active={activeTab === 'dashboard'}
             label="總覽"
@@ -508,6 +619,11 @@ export default function App() {
             active={activeTab === 'body'}
             label="體重"
             onClick={() => setActiveTab('body')}
+          />
+          <TabButton
+            active={activeTab === 'achievements'}
+            label="成就"
+            onClick={() => setActiveTab('achievements')}
           />
         </div>
       </div>
@@ -1363,6 +1479,60 @@ export default function App() {
                   </button>
                 </Card>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* --- ACHIEVEMENTS (新功能：成就時間軸) --- */}
+        {activeTab === 'achievements' && (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center gap-3 mb-2 px-2">
+              <div className="p-3 bg-yellow-100 rounded-full text-yellow-600 shadow-sm">
+                <Trophy className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-xl font-extrabold text-slate-800">我的成就旅程</h2>
+                <p className="text-xs text-slate-400">回顧每一個努力的瞬間</p>
+              </div>
+            </div>
+
+            {/* 時間軸容器 */}
+            <div className="relative pl-4 space-y-6 before:content-[''] before:absolute before:left-[27px] before:top-2 before:bottom-0 before:w-0.5 before:bg-slate-100">
+              {achievements.length > 0 ? (
+                achievements.map((event, index) => (
+                  <div key={index} className="relative pl-10">
+                    {/* 時間軸上的圓點圖示 */}
+                    <div className={`absolute left-0 top-0 w-14 h-14 rounded-full border-4 border-white shadow-md flex items-center justify-center z-10 ${event.color}`}>
+                      <event.icon className="h-6 w-6" />
+                    </div>
+                    
+                    {/* 內容卡片 */}
+                    <Card className="p-4 ml-2">
+                      <div className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-2">
+                        <Calendar className="h-3 w-3" />
+                        {event.date}
+                      </div>
+                      <h3 className="font-bold text-slate-800 text-lg mb-1">
+                        {event.title}
+                      </h3>
+                      <p className="text-sm text-slate-500 leading-relaxed">
+                        {event.description}
+                      </p>
+                    </Card>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-10 text-slate-400 pl-6">
+                  <Star className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                  <p>紀錄還在累積中...</p>
+                  <p className="text-xs mt-1">持續記錄，這裡就會出現您的故事喔！</p>
+                </div>
+              )}
+            </div>
+            
+            {/* 底部激勵小語 */}
+            <div className="text-center py-6 text-slate-300 text-xs italic">
+              "每一步都算數，繼續加油！"
             </div>
           </div>
         )}
