@@ -28,8 +28,8 @@ import {
   Trophy,
   Zap,
   TrendingDown,
-  TrendingUp, // ✅ 補上缺少的圖示
-  Minus,      // ✅ 補上缺少的圖示
+  TrendingUp,
+  Minus,
   Star,
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
@@ -68,6 +68,13 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = 'my-mounjaro-life';
+
+// --- Helper: 取得當地時區的今天日期 (YYYY-MM-DD) ---
+const getLocalToday = () => {
+  const d = new Date();
+  const offset = d.getTimezoneOffset() * 60000; // 分鐘轉豪秒
+  return new Date(d.getTime() - offset).toISOString().split('T')[0];
+};
 
 // --- Types ---
 interface InjectionRecord {
@@ -114,6 +121,7 @@ const Card = ({
   className?: string;
   onClick?: () => void;
 }) => {
+  // 基礎樣式
   const baseClass = `bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative z-10 text-left ${className}`;
   
   if (onClick) {
@@ -167,7 +175,7 @@ export default function App() {
   >('dashboard');
   const [loading, setLoading] = useState(true);
 
-  // 滑動手勢 State
+  // 滑動手勢 State (同時記錄 X 和 Y 以防誤觸)
   const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
   const [touchEnd, setTouchEnd] = useState<{x: number, y: number} | null>(null);
   
@@ -178,25 +186,19 @@ export default function App() {
   const [bodyRecords, setBodyRecords] = useState<BodyRecord[]>([]);
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
 
-  // Forms
-  const [injDate, setInjDate] = useState(
-    new Date().toISOString().split('T')[0]
-  );
+  // Forms (初始值改用 getLocalToday 確保時區正確)
+  const [injDate, setInjDate] = useState(getLocalToday());
   const [injDosage, setInjDosage] = useState('2.5');
   const [injSite, setInjSite] = useState('左上腹');
   const [injNotes, setInjNotes] = useState('');
   const [injSideEffects, setInjSideEffects] = useState('');
-  const [bodyDate, setBodyDate] = useState(
-    new Date().toISOString().split('T')[0]
-  );
+  const [bodyDate, setBodyDate] = useState(getLocalToday());
   const [weight, setWeight] = useState('');
   const [bodyFat, setBodyFat] = useState('');
   const [muscleMass, setMuscleMass] = useState('');
 
-  // Forms - Daily Life
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split('T')[0]
-  );
+  // Forms - Daily Life (初始值改用 getLocalToday)
+  const [selectedDate, setSelectedDate] = useState(getLocalToday());
   const [waterBottleSize, setWaterBottleSize] = useState(1200);
   const [mealContent, setMealContent] = useState('');
   const [activeMealType, setActiveMealType] = useState<
@@ -284,7 +286,7 @@ export default function App() {
     };
   }, [user]);
 
-  // --- Handlers ---
+  // --- Handlers: 智慧滑動切換 ---
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
     setTouchStart({
@@ -294,7 +296,10 @@ export default function App() {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    setTouchEnd({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
   };
 
   const handleTouchEnd = () => {
@@ -302,18 +307,20 @@ export default function App() {
     
     const distanceX = touchStart.x - touchEnd.x;
     const distanceY = touchStart.y - touchEnd.y;
-    const minSwipeDistance = 75; 
+    const minSwipeDistance = 75; // 門檻值：需大於 75px 才算滑動
 
+    // 1. 距離太短視為點擊，不切換
     if (Math.abs(distanceX) < minSwipeDistance) return;
+    // 2. 垂直移動大於水平移動視為捲動，不切換
     if (Math.abs(distanceY) > Math.abs(distanceX)) return;
 
     const currentIndex = tabOrder.indexOf(activeTab as any);
 
-    if (distanceX > minSwipeDistance) {
+    if (distanceX > minSwipeDistance) { // 左滑 -> 下一個
       if (currentIndex < tabOrder.length - 1) {
         setActiveTab(tabOrder[currentIndex + 1]);
       }
-    } else if (distanceX < -minSwipeDistance) {
+    } else if (distanceX < -minSwipeDistance) { // 右滑 -> 上一個
       if (currentIndex > 0) {
         setActiveTab(tabOrder[currentIndex - 1]);
       }
