@@ -103,7 +103,6 @@ interface AchievementItem {
 }
 
 // --- UI Components ---
-// 改回單純的 div，避免 button 標籤在某些手機上的樣式怪異問題
 const Card = ({
   children,
   className = '',
@@ -182,7 +181,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [waterBottleSize, setWaterBottleSize] = useState(1200); // 預設 1200ml
+  const [waterBottleSize, setWaterBottleSize] = useState(1200);
   const [mealContent, setMealContent] = useState('');
   const [activeMealType, setActiveMealType] = useState<
     'breakfast' | 'lunch' | 'dinner' | 'snack' | null
@@ -211,11 +210,9 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
-        console.log("歡迎回來:", currentUser.uid);
         setUser(currentUser);
         setLoading(false);
       } else {
-        console.log("建立新訪客...");
         signInAnonymously(auth).catch((err) => console.error("Login Error:", err));
       }
     });
@@ -507,7 +504,9 @@ export default function App() {
     );
 
   return (
-    <div className="fixed inset-0 w-full h-full bg-[#F8FAFC] text-slate-800 font-sans flex flex-col overflow-y-auto overflow-x-hidden pb-24">
+    <div 
+      className="fixed inset-0 w-full h-full bg-[#F8FAFC] text-slate-800 font-sans flex flex-col overflow-y-auto overflow-x-hidden pb-24"
+    >
       <div className="fixed top-0 left-0 w-full h-64 bg-gradient-to-br from-indigo-50 via-purple-50 to-white -z-10" />
 
       <header className="pt-8 pb-6 px-6 relative z-50">
@@ -784,7 +783,7 @@ export default function App() {
         {activeTab === 'daily' && (
           <div className="space-y-6">
             
-            {/* 恢復隱形覆蓋法 - 手機最穩定的選擇 */}
+            {/* 日期選擇器 (恢復為最穩定的隱形覆蓋法) */}
             <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-slate-100 gap-2">
               <button
                 onClick={() => {
@@ -798,11 +797,11 @@ export default function App() {
               </button>
               
               <div className="relative flex-1 h-10 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center gap-2 overflow-hidden">
-                {/* 視覺層：漂亮的文字 */}
+                {/* 視覺層 */}
                 <Calendar className="h-4 w-4 text-indigo-500 pointer-events-none" />
                 <span className="text-slate-700 font-bold text-sm pointer-events-none">{selectedDate}</span>
                 
-                {/* 觸控層：隱形的 Input，蓋在最上面 */}
+                {/* 觸控層 */}
                 <input
                   type="date"
                   value={selectedDate}
@@ -825,7 +824,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* 皇冠日曆卡片 */}
+            {/* 皇冠日曆卡片 (加入點擊切換日期功能) */}
             <Card className="p-5">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-slate-700 flex items-center gap-2">
@@ -866,17 +865,20 @@ export default function App() {
                     
                     const isAchieved = dayWater >= 3000;
                     const isToday = dateStr === new Date().toISOString().split('T')[0];
+                    const isSelected = dateStr === selectedDate;
 
                     days.push(
                       <div
                         key={d}
-                        className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs relative border 
+                        onClick={() => setSelectedDate(dateStr)}
+                        className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs relative border cursor-pointer transition-all active:scale-95
+                          ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2 z-10' : ''}
                           ${
                             isAchieved
                               ? 'bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-200'
                               : isToday
                               ? 'bg-white border-blue-200 text-blue-600 font-bold'
-                              : 'bg-slate-50/50 text-slate-400 border-transparent'
+                              : 'bg-slate-50/50 text-slate-400 border-transparent hover:bg-slate-100'
                           }`}
                       >
                         <span className="z-10">{d}</span>
