@@ -111,14 +111,26 @@ const Card = ({
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
-}) => (
-  <div
-    onClick={onClick}
-    className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative z-10 ${className} ${onClick ? 'cursor-pointer hover:shadow-md transition-transform active:scale-[0.98]' : ''}`}
-  >
-    {children}
-  </div>
-);
+}) => {
+  // 基礎樣式
+  const baseClass = `bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative z-10 text-left ${className}`;
+  
+  // 如果有 onClick，渲染為 button 以優化手機觸控體驗
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        className={`${baseClass} w-full hover:shadow-md transition-transform active:scale-[0.98] cursor-pointer`}
+        type="button"
+      >
+        {children}
+      </button>
+    );
+  }
+
+  // 否則渲染為普通 div
+  return <div className={baseClass}>{children}</div>;
+};
 
 const PrimaryButton = ({
   onClick,
@@ -157,6 +169,12 @@ export default function App() {
   >('dashboard');
   const [loading, setLoading] = useState(true);
 
+  // 滑動手勢 State
+  const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{x: number, y: number} | null>(null);
+  
+  const tabOrder = ['dashboard', 'daily', 'injections', 'body', 'achievements'] as const;
+
   // Data
   const [injections, setInjections] = useState<InjectionRecord[]>([]);
   const [bodyRecords, setBodyRecords] = useState<BodyRecord[]>([]);
@@ -181,7 +199,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [waterBottleSize, setWaterBottleSize] = useState(1200);
+  const [waterBottleSize, setWaterBottleSize] = useState(1200); // 預設 1200ml
   const [mealContent, setMealContent] = useState('');
   const [activeMealType, setActiveMealType] = useState<
     'breakfast' | 'lunch' | 'dinner' | 'snack' | null
@@ -268,7 +286,49 @@ export default function App() {
     };
   }, [user]);
 
-  // --- Handlers ---
+  // --- Handlers: 智慧滑動切換邏輯 ---
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distanceX = touchStart.x - touchEnd.x;
+    const distanceY = touchStart.y - touchEnd.y;
+    const minSwipeDistance = 75; // 增加最小滑動距離，避免誤觸點擊
+
+    // 【重要】防誤觸邏輯：
+    // 1. 如果水平移動小於 75px，視為點擊，不切換頁籤
+    if (Math.abs(distanceX) < minSwipeDistance) return;
+
+    // 2. 如果垂直移動 > 水平移動，視為捲動，不切換頁籤
+    if (Math.abs(distanceY) > Math.abs(distanceX)) return;
+
+    const currentIndex = tabOrder.indexOf(activeTab as any);
+
+    if (distanceX > minSwipeDistance) { // 左滑 -> 下一個
+      if (currentIndex < tabOrder.length - 1) {
+        setActiveTab(tabOrder[currentIndex + 1]);
+      }
+    } else if (distanceX < -minSwipeDistance) { // 右滑 -> 上一個
+      if (currentIndex > 0) {
+        setActiveTab(tabOrder[currentIndex - 1]);
+      }
+    }
+  };
+
   const addInjection = async () => {
     if (!user) return;
     await addDoc(
@@ -375,9 +435,12 @@ export default function App() {
     .filter((l) => l.category === 'water')
     .reduce((acc, curr) => acc + (curr.value || 0), 0);
   const meals = todaysLogs.filter((l) => l.category === 'meal');
-  
-  // 修正 Bug：這裡的排便邏輯改為「找出選定日期(含)之前的最後一次排便」
-  // 這樣切換日曆時，才能顯示當時狀態，而不是永遠跟「今天」比
+  const poops = dailyLogs
+    .filter((l) => l.category === 'poop')
+    .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+  const lastPoop = poops[0];
+
+  // 修正：排便天數改為計算「選定日期」當下的狀態
   const lastPoopBeforeSelected = useMemo(() => {
      return dailyLogs
       .filter(l => l.category === 'poop' && l.date <= selectedDate)
@@ -387,7 +450,6 @@ export default function App() {
   const daysSincePoop = useMemo(() => {
     if (!lastPoopBeforeSelected) return -1;
 
-    // 使用選定的日期當作基準點，而不是 new Date()
     const [sY, sM, sD] = selectedDate.split('-').map(Number);
     const current = new Date(sY, sM - 1, sD);
 
@@ -512,6 +574,10 @@ export default function App() {
 
   return (
     <div 
+      // 加入滑動監聽
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       className="fixed inset-0 w-full h-full bg-[#F8FAFC] text-slate-800 font-sans flex flex-col overflow-y-auto overflow-x-hidden pb-24"
     >
       <div className="fixed top-0 left-0 w-full h-64 bg-gradient-to-br from-indigo-50 via-purple-50 to-white -z-10" />
@@ -790,7 +856,7 @@ export default function App() {
         {activeTab === 'daily' && (
           <div className="space-y-6">
             
-            {/* 日期選擇器 (恢復為最穩定的隱形覆蓋法) */}
+            {/* 日期選擇器 (隱形覆蓋法) */}
             <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-slate-100 gap-2">
               <button
                 onClick={() => {
@@ -831,7 +897,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* 皇冠日曆卡片 (加入點擊切換日期功能) */}
+            {/* 皇冠日曆卡片 (現在可以點擊切換了！) */}
             <Card className="p-5">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-slate-700 flex items-center gap-2">
