@@ -93,7 +93,6 @@ interface DailyLog {
   timestamp?: any;
 }
 
-// 成就項目的類型定義
 interface AchievementItem {
   date: string;
   type: 'injection' | 'water_goal' | 'water_streak' | 'weight_loss';
@@ -104,6 +103,7 @@ interface AchievementItem {
 }
 
 // --- UI Components ---
+// 修改：如果 Card 有 onClick，就渲染成 <button>，保證手機點擊有效
 const Card = ({
   children,
   className = '',
@@ -112,15 +112,22 @@ const Card = ({
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
-}) => (
-  <div
-    onClick={onClick}
-    // 加入 relative z-10 確保它浮在最上面，可以被點擊
-    className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative z-10 ${className} ${onClick ? 'cursor-pointer hover:shadow-md transition-transform active:scale-[0.99]' : ''}`}
-  >
-    {children}
-  </div>
-);
+}) => {
+  const baseClasses = `bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative z-10 text-left ${className}`;
+  
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        className={`${baseClasses} w-full hover:shadow-md transition-transform active:scale-[0.98] cursor-pointer`}
+      >
+        {children}
+      </button>
+    );
+  }
+
+  return <div className={baseClasses}>{children}</div>;
+};
 
 const PrimaryButton = ({
   onClick,
@@ -188,7 +195,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [waterBottleSize, setWaterBottleSize] = useState(1200);
+  const [waterBottleSize, setWaterBottleSize] = useState(1200); // 預設 1200ml
   const [mealContent, setMealContent] = useState('');
   const [activeMealType, setActiveMealType] = useState<
     'breakfast' | 'lunch' | 'dinner' | 'snack' | null
@@ -441,7 +448,6 @@ export default function App() {
   const achievements = useMemo(() => {
     const events: AchievementItem[] = [];
 
-    // 1. 注射成就
     const seenDosages = new Set<string>();
     const sortedInjections = [...injections].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
@@ -469,7 +475,6 @@ export default function App() {
       }
     });
 
-    // 2. 體重成就
     if (bodyRecords.length > 0) {
       const sortedBody = [...bodyRecords].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       const startW = sortedBody[0].weight;
@@ -494,7 +499,6 @@ export default function App() {
       });
     }
 
-    // 3. 飲水成就
     const waterByDate: Record<string, number> = {};
     dailyLogs.filter(l => l.category === 'water').forEach(l => {
       waterByDate[l.date] = (waterByDate[l.date] || 0) + (l.value || 0);
@@ -824,7 +828,7 @@ export default function App() {
         {activeTab === 'daily' && (
           <div className="space-y-6">
             
-            {/* 日期選擇器 (隱形覆蓋法 - 最穩定的版本) */}
+            {/* 日期選擇器 (修正版：使用標準 Input，保證點擊有效) */}
             <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-slate-100 gap-2">
               <button
                 onClick={() => {
@@ -837,19 +841,15 @@ export default function App() {
                 ←
               </button>
               
-              <div className="relative flex-1 h-10 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center gap-2">
-                {/* 顯示的部分 */}
-                <Calendar className="h-4 w-4 text-indigo-500" />
-                <span className="text-slate-700 font-bold text-sm">{selectedDate}</span>
-                
-                {/* 隱形觸發器 (蓋在上面，保證點得到) */}
+              <div className="relative flex-1">
+                {/* 使用標準 input，不使用 opacity hack，確保點擊有效 */}
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => {
                     if (e.target.value) setSelectedDate(e.target.value);
                   }}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                  className="w-full bg-slate-50 text-slate-700 font-bold text-sm py-2 px-4 rounded-xl border border-slate-100 outline-none focus:ring-2 focus:ring-indigo-200 text-center"
                 />
               </div>
 
