@@ -1,23 +1,12 @@
 /* src/index.css */
-
-/* 1. 基礎設定：讓網頁預設佔滿視窗，不要有白邊 */
 html, body {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
-  /* 防止手機橫向溢出 */
-  overflow-x: hidden; 
+  overflow-x: hidden;
 }
 
-/* 2. 字體設定：使用系統預設好看的字體 */
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* 3. 確保 React 的根目錄也是滿版 */
 #root {
   width: 100%;
   height: 100%;
