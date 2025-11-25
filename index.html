@@ -1,10 +1,23 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-TW">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mounjaro Life 健康日記</title>
+    <!-- ▼▼▼ 就是少了下面這一行關鍵設定 ▼▼▼ -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Mounjaro Life</title>
+    <!-- 引入 Tailwind CSS 讓畫面變漂亮 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* 額外優化：防止手機點擊時放大的效果，讓操作更像 App */
+      body {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
