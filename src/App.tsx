@@ -115,7 +115,8 @@ const Card = ({
 }) => (
   <div
     onClick={onClick}
-    className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden ${className} ${onClick ? 'cursor-pointer hover:shadow-md transition-transform active:scale-[0.99]' : ''}`}
+    // 加入 relative z-10 確保它浮在最上面，可以被點擊
+    className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative z-10 ${className} ${onClick ? 'cursor-pointer hover:shadow-md transition-transform active:scale-[0.99]' : ''}`}
   >
     {children}
   </div>
@@ -187,7 +188,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [waterBottleSize, setWaterBottleSize] = useState(1200); // 預設 1200ml
+  const [waterBottleSize, setWaterBottleSize] = useState(1200);
   const [mealContent, setMealContent] = useState('');
   const [activeMealType, setActiveMealType] = useState<
     'breakfast' | 'lunch' | 'dinner' | 'snack' | null
@@ -549,7 +550,7 @@ export default function App() {
     >
       <div className="fixed top-0 left-0 w-full h-64 bg-gradient-to-br from-indigo-50 via-purple-50 to-white -z-10" />
 
-      <header className="pt-8 pb-6 px-6">
+      <header className="pt-8 pb-6 px-6 relative z-50">
         <div className="max-w-md mx-auto flex justify-between items-end">
           <div>
             <p className="text-slate-400 text-xs font-bold tracking-wider uppercase mb-1">
@@ -561,7 +562,7 @@ export default function App() {
           </div>
           <button
             onClick={user?.isAnonymous ? handleLinkGoogle : handleLogout}
-            className={`h-10 w-10 rounded-full shadow-md flex items-center justify-center border transition-all cursor-pointer ${
+            className={`h-10 w-10 rounded-full shadow-md flex items-center justify-center border transition-all cursor-pointer z-50 ${
               user?.isAnonymous
                 ? 'bg-white border-indigo-50 hover:bg-indigo-50'
                 : 'bg-indigo-600 border-indigo-600 hover:opacity-90'
@@ -585,7 +586,7 @@ export default function App() {
         </div>
       </header>
 
-      <div className="px-6 mb-6 sticky top-2 z-30">
+      <div className="px-6 mb-6 sticky top-2 z-40">
         <div className="max-w-md mx-auto bg-white/80 backdrop-blur-md p-1.5 rounded-2xl shadow-lg shadow-slate-200/50 border border-white/50 flex overflow-x-auto">
           <TabButton
             active={activeTab === 'dashboard'}
@@ -615,7 +616,7 @@ export default function App() {
         </div>
       </div>
 
-      <main className="px-6 max-w-md mx-auto space-y-6 animate-fade-in flex-1 w-full">
+      <main className="px-6 max-w-md mx-auto space-y-6 animate-fade-in flex-1 w-full relative z-10">
         {/* --- DASHBOARD --- */}
         {activeTab === 'dashboard' && (
           <>
@@ -823,7 +824,7 @@ export default function App() {
         {activeTab === 'daily' && (
           <div className="space-y-6">
             
-            {/* 把日期選單移回最頂端！恢復使用者習慣 */}
+            {/* 日期選擇器 (隱形覆蓋法 - 最穩定的版本) */}
             <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-slate-100 gap-2">
               <button
                 onClick={() => {
@@ -835,17 +836,23 @@ export default function App() {
               >
                 ←
               </button>
-              <div className="relative flex-1">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500 pointer-events-none" />
+              
+              <div className="relative flex-1 h-10 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center gap-2">
+                {/* 顯示的部分 */}
+                <Calendar className="h-4 w-4 text-indigo-500" />
+                <span className="text-slate-700 font-bold text-sm">{selectedDate}</span>
+                
+                {/* 隱形觸發器 (蓋在上面，保證點得到) */}
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => {
                     if (e.target.value) setSelectedDate(e.target.value);
                   }}
-                  className="w-full bg-slate-50 text-slate-700 font-bold text-sm py-2 pl-10 pr-2 rounded-xl border border-slate-100 outline-none focus:ring-2 focus:ring-indigo-200 cursor-pointer appearance-none"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                 />
               </div>
+
               <button
                 onClick={() => {
                   const d = new Date(selectedDate);
@@ -858,6 +865,7 @@ export default function App() {
               </button>
             </div>
 
+            {/* 皇冠日曆卡片 */}
             <Card className="p-5">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-slate-700 flex items-center gap-2">
