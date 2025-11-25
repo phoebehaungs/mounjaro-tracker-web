@@ -28,9 +28,9 @@ import {
   Trophy,
   Zap,
   TrendingDown,
+  TrendingUp, // ✅ 補上缺少的圖示
+  Minus,      // ✅ 補上缺少的圖示
   Star,
-  TrendingUp, // 新增圖示：體重上升
-  Minus,      // 新增圖示：體重持平
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import {
@@ -113,14 +113,22 @@ const Card = ({
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
-}) => (
-  <div
-    onClick={onClick}
-    className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative z-10 ${className} ${onClick ? 'cursor-pointer hover:shadow-md transition-transform active:scale-[0.98]' : ''}`}
-  >
-    {children}
-  </div>
-);
+}) => {
+  const baseClass = `bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative z-10 text-left ${className}`;
+  
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        className={`${baseClass} w-full hover:shadow-md transition-transform active:scale-[0.98] cursor-pointer`}
+        type="button"
+      >
+        {children}
+      </button>
+    );
+  }
+  return <div className={baseClass}>{children}</div>;
+};
 
 const PrimaryButton = ({
   onClick,
@@ -189,7 +197,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [waterBottleSize, setWaterBottleSize] = useState(1200); // 預設 1200ml
+  const [waterBottleSize, setWaterBottleSize] = useState(1200);
   const [mealContent, setMealContent] = useState('');
   const [activeMealType, setActiveMealType] = useState<
     'breakfast' | 'lunch' | 'dinner' | 'snack' | null
@@ -301,11 +309,11 @@ export default function App() {
 
     const currentIndex = tabOrder.indexOf(activeTab as any);
 
-    if (distanceX > minSwipeDistance) { // 左滑 -> 下一個
+    if (distanceX > minSwipeDistance) {
       if (currentIndex < tabOrder.length - 1) {
         setActiveTab(tabOrder[currentIndex + 1]);
       }
-    } else if (distanceX < -minSwipeDistance) { // 右滑 -> 上一個
+    } else if (distanceX < -minSwipeDistance) {
       if (currentIndex > 0) {
         setActiveTab(tabOrder[currentIndex - 1]);
       }
@@ -418,10 +426,12 @@ export default function App() {
     .filter((l) => l.category === 'water')
     .reduce((acc, curr) => acc + (curr.value || 0), 0);
   const meals = todaysLogs.filter((l) => l.category === 'meal');
-  const poops = dailyLogs
-    .filter((l) => l.category === 'poop')
-    .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-  const lastPoop = poops[0];
+  
+  const lastPoopBeforeSelected = useMemo(() => {
+     return dailyLogs
+      .filter(l => l.category === 'poop' && l.date <= selectedDate)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  }, [dailyLogs, selectedDate]);
 
   const daysSincePoop = useMemo(() => {
     if (!lastPoopBeforeSelected) return -1;
@@ -435,13 +445,6 @@ export default function App() {
     const diffTime = current.getTime() - last.getTime();
     return Math.floor(diffTime / (1000 * 60 * 60 * 24));
   }, [lastPoopBeforeSelected, selectedDate]);
-
-  // 修正排便天數邏輯
-  const lastPoopBeforeSelected = useMemo(() => {
-     return dailyLogs
-      .filter(l => l.category === 'poop' && l.date <= selectedDate)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-  }, [dailyLogs, selectedDate]);
 
   const chartData = useMemo(() => {
     return [...bodyRecords]
@@ -1453,7 +1456,6 @@ export default function App() {
             </Card>
             <div className="space-y-3">
               {bodyRecords.map((r, index) => {
-                // 計算體重差異
                 const prevRecord = bodyRecords[index + 1];
                 const diff = prevRecord ? (r.weight - prevRecord.weight) : 0;
                 const isGain = diff > 0;
@@ -1477,7 +1479,6 @@ export default function App() {
                               {r.weight} <span className="text-sm font-normal text-slate-400">kg</span>
                             </div>
                             
-                            {/* 體重差異顯示 (綠色為瘦, 紅色為胖) */}
                             {diffText && (
                               <div className={`flex items-center text-xs font-bold px-1.5 py-0.5 rounded ${
                                 isLoss ? 'text-green-600 bg-green-50' : isGain ? 'text-red-500 bg-red-50' : 'text-slate-400 bg-slate-50'
