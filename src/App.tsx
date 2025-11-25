@@ -103,7 +103,7 @@ interface AchievementItem {
 }
 
 // --- UI Components ---
-// 修改：如果 Card 有 onClick，就渲染成 <button>，保證手機點擊有效
+// 改回單純的 div，避免 button 標籤在某些手機上的樣式怪異問題
 const Card = ({
   children,
   className = '',
@@ -112,22 +112,14 @@ const Card = ({
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
-}) => {
-  const baseClasses = `bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative z-10 text-left ${className}`;
-  
-  if (onClick) {
-    return (
-      <button
-        onClick={onClick}
-        className={`${baseClasses} w-full hover:shadow-md transition-transform active:scale-[0.98] cursor-pointer`}
-      >
-        {children}
-      </button>
-    );
-  }
-
-  return <div className={baseClasses}>{children}</div>;
-};
+}) => (
+  <div
+    onClick={onClick}
+    className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative z-10 ${className} ${onClick ? 'cursor-pointer hover:shadow-md transition-transform active:scale-[0.98]' : ''}`}
+  >
+    {children}
+  </div>
+);
 
 const PrimaryButton = ({
   onClick,
@@ -165,11 +157,6 @@ export default function App() {
     'dashboard' | 'daily' | 'injections' | 'body' | 'achievements'
   >('dashboard');
   const [loading, setLoading] = useState(true);
-
-  // 滑動手勢 State
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  const tabOrder = ['dashboard', 'daily', 'injections', 'body', 'achievements'] as const;
 
   // Data
   const [injections, setInjections] = useState<InjectionRecord[]>([]);
@@ -285,32 +272,6 @@ export default function App() {
   }, [user]);
 
   // --- Handlers ---
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const minSwipeDistance = 50; 
-    const currentIndex = tabOrder.indexOf(activeTab as any);
-
-    if (distance > minSwipeDistance) {
-      if (currentIndex < tabOrder.length - 1) {
-        setActiveTab(tabOrder[currentIndex + 1]);
-      }
-    } else if (distance < -minSwipeDistance) {
-      if (currentIndex > 0) {
-        setActiveTab(tabOrder[currentIndex - 1]);
-      }
-    }
-  };
-
   const addInjection = async () => {
     if (!user) return;
     await addDoc(
@@ -546,12 +507,7 @@ export default function App() {
     );
 
   return (
-    <div 
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      className="fixed inset-0 w-full h-full bg-[#F8FAFC] text-slate-800 font-sans flex flex-col overflow-y-auto overflow-x-hidden pb-24"
-    >
+    <div className="fixed inset-0 w-full h-full bg-[#F8FAFC] text-slate-800 font-sans flex flex-col overflow-y-auto overflow-x-hidden pb-24">
       <div className="fixed top-0 left-0 w-full h-64 bg-gradient-to-br from-indigo-50 via-purple-50 to-white -z-10" />
 
       <header className="pt-8 pb-6 px-6 relative z-50">
@@ -828,7 +784,7 @@ export default function App() {
         {activeTab === 'daily' && (
           <div className="space-y-6">
             
-            {/* 日期選擇器 (修正版：使用標準 Input，保證點擊有效) */}
+            {/* 恢復隱形覆蓋法 - 手機最穩定的選擇 */}
             <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-slate-100 gap-2">
               <button
                 onClick={() => {
@@ -841,15 +797,19 @@ export default function App() {
                 ←
               </button>
               
-              <div className="relative flex-1">
-                {/* 使用標準 input，不使用 opacity hack，確保點擊有效 */}
+              <div className="relative flex-1 h-10 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center gap-2 overflow-hidden">
+                {/* 視覺層：漂亮的文字 */}
+                <Calendar className="h-4 w-4 text-indigo-500 pointer-events-none" />
+                <span className="text-slate-700 font-bold text-sm pointer-events-none">{selectedDate}</span>
+                
+                {/* 觸控層：隱形的 Input，蓋在最上面 */}
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => {
                     if (e.target.value) setSelectedDate(e.target.value);
                   }}
-                  className="w-full bg-slate-50 text-slate-700 font-bold text-sm py-2 px-4 rounded-xl border border-slate-100 outline-none focus:ring-2 focus:ring-indigo-200 text-center"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                 />
               </div>
 
